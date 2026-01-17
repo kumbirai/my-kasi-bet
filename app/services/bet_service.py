@@ -54,6 +54,27 @@ class BetService:
         BetType.FOOTBALL_YESNO: (Decimal("10.00"), Decimal("1000.00")),
     }
 
+    # User-friendly game names for error messages
+    GAME_NAMES = {
+        BetType.LUCKY_WHEEL: "Lucky Wheel",
+        BetType.COLOR_GAME: "Color Game",
+        BetType.PICK_3: "Pick 3",
+        BetType.FOOTBALL_YESNO: "Football Yes/No",
+    }
+
+    @staticmethod
+    def get_game_name(bet_type: BetType) -> str:
+        """
+        Get user-friendly name for a bet type.
+
+        Args:
+            bet_type: The bet type enum
+
+        Returns:
+            User-friendly game name
+        """
+        return BetService.GAME_NAMES.get(bet_type, str(bet_type))
+
     @staticmethod
     def place_bet(
         user_id: int,
@@ -96,13 +117,15 @@ class BetService:
             )
 
             if stake_amount < min_bet:
+                game_name = BetService.get_game_name(bet_type)
                 raise InvalidBetAmountError(
-                    f"Minimum bet for {bet_type} is R{min_bet}"
+                    f"Minimum bet for {game_name} is R{min_bet}"
                 )
 
             if stake_amount > max_bet:
+                game_name = BetService.get_game_name(bet_type)
                 raise InvalidBetAmountError(
-                    f"Maximum bet for {bet_type} is R{max_bet}"
+                    f"Maximum bet for {game_name} is R{max_bet}"
                 )
 
             # Create bet record (status=PENDING)
