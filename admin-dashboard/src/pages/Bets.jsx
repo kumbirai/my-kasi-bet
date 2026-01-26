@@ -78,10 +78,10 @@ const Bets = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Bets</h1>
+        <h1 className="text-2xl font-bold text-shadow-grey-900">Bets</h1>
         <button
           onClick={exportToCSV}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          className="px-4 py-2 bg-true-cobalt-600 text-white rounded-md hover:bg-true-cobalt-700"
         >
           Export CSV
         </button>
@@ -90,20 +90,20 @@ const Bets = () => {
       {statistics && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Total Bets</div>
+            <div className="text-sm text-shadow-grey-600">Total Bets</div>
             <div className="text-2xl font-bold">{statistics.total_bets}</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Active Bets</div>
-            <div className="text-2xl font-bold text-yellow-600">{statistics.active_bets}</div>
+            <div className="text-sm text-shadow-grey-600">Active Bets</div>
+            <div className="text-2xl font-bold text-soft-periwinkle-600">{statistics.active_bets}</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Total Wagered</div>
+            <div className="text-sm text-shadow-grey-600">Total Wagered</div>
             <div className="text-2xl font-bold">R {statistics.total_wagered.toFixed(2)}</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Net Revenue</div>
-            <div className={`text-2xl font-bold ${statistics.net_revenue >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="text-sm text-shadow-grey-600">Net Revenue</div>
+            <div className={`text-2xl font-bold ${statistics.net_revenue >= 0 ? 'text-periwinkle-600' : 'text-shadow-grey-700'}`}>
               R {statistics.net_revenue.toFixed(2)}
             </div>
           </div>
@@ -113,7 +113,7 @@ const Bets = () => {
       <div className="bg-white p-4 rounded-lg shadow mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Bet Type</label>
+            <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Bet Type</label>
             <select
               value={filters.bet_type}
               onChange={(e) => {
@@ -130,7 +130,7 @@ const Bets = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Status</label>
             <select
               value={filters.status}
               onChange={(e) => {
@@ -146,7 +146,7 @@ const Bets = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+            <label className="block text-sm font-medium text-shadow-grey-700 mb-2">From Date</label>
             <input
               type="date"
               value={filters.date_from}
@@ -158,7 +158,7 @@ const Bets = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+            <label className="block text-sm font-medium text-shadow-grey-700 mb-2">To Date</label>
             <input
               type="date"
               value={filters.date_to}
@@ -179,36 +179,36 @@ const Bets = () => {
           <div className="p-8 text-center">No bets found</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-shadow-grey-200">
+              <thead className="bg-shadow-grey-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stake</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payout</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Stake</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Payout</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Created</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-shadow-grey-200">
                 {bets.map((bet) => (
-                  <tr key={bet.id} className="hover:bg-gray-50">
+                  <tr key={bet.id} className="hover:bg-shadow-grey-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{bet.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{bet.user_phone}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{bet.bet_type}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">R {bet.stake_amount.toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        bet.status === 'won' ? 'bg-green-100 text-green-800' :
-                        bet.status === 'lost' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
+                        bet.status === 'won' ? 'bg-periwinkle-100 text-periwinkle-800' :
+                        bet.status === 'lost' ? 'bg-shadow-grey-200 text-shadow-grey-800' :
+                        'bg-soft-periwinkle-100 text-soft-periwinkle-800'
                       }`}>
                         {bet.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">R {bet.payout_amount.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-500">
                       {new Date(bet.created_at).toLocaleString()}
                     </td>
                   </tr>

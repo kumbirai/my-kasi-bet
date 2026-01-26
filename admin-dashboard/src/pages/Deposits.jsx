@@ -178,17 +178,17 @@ const Deposits = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Deposits</h1>
+        <h1 className="text-2xl font-bold text-shadow-grey-900">Deposits</h1>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="px-4 py-2 bg-true-cobalt-600 text-white rounded-md hover:bg-true-cobalt-700 focus:outline-none focus:ring-2 focus:ring-true-cobalt-500"
         >
           + Create Deposit
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-shadow-grey-200 mb-6">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => {
@@ -197,8 +197,8 @@ const Deposits = () => {
             }}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'pending'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-true-cobalt-500 text-true-cobalt-600'
+                : 'border-transparent text-shadow-grey-500 hover:text-shadow-grey-700 hover:border-shadow-grey-300'
             }`}
           >
             Pending ({deposits.filter(d => d.status === 'pending').length})
@@ -210,8 +210,8 @@ const Deposits = () => {
             }}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'all'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-true-cobalt-500 text-true-cobalt-600'
+                : 'border-transparent text-shadow-grey-500 hover:text-shadow-grey-700 hover:border-shadow-grey-300'
             }`}
           >
             All Deposits
@@ -222,41 +222,41 @@ const Deposits = () => {
       {/* Deposits Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-600">Loading deposits...</div>
+          <div className="p-8 text-center text-shadow-grey-600">Loading deposits...</div>
         ) : deposits.length === 0 ? (
-          <div className="p-8 text-center text-gray-600">No deposits found</div>
+          <div className="p-8 text-center text-shadow-grey-600">No deposits found</div>
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-shadow-grey-200">
+                <thead className="bg-shadow-grey-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">User ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Method</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Created</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-shadow-grey-200">
                   {deposits.map((deposit) => (
-                    <tr key={deposit.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{deposit.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{deposit.user_id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">R {parseFloat(deposit.amount).toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{deposit.payment_method}</td>
+                    <tr key={deposit.id} className="hover:bg-shadow-grey-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">{deposit.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">{deposit.user_id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">R {parseFloat(deposit.amount).toFixed(2)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-500">{deposit.payment_method}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          deposit.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          deposit.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
+                          deposit.status === 'approved' ? 'bg-periwinkle-100 text-periwinkle-800' :
+                          deposit.status === 'rejected' ? 'bg-shadow-grey-200 text-shadow-grey-800' :
+                          'bg-soft-periwinkle-100 text-soft-periwinkle-800'
                         }`}>
                           {deposit.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-500">
                         {new Date(deposit.created_at).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -267,7 +267,7 @@ const Deposits = () => {
                                 setSelectedDeposit(deposit);
                                 setShowApproveModal(true);
                               }}
-                              className="text-green-600 hover:text-green-900 mr-4"
+                              className="text-periwinkle-600 hover:text-periwinkle-900 mr-4"
                             >
                               Approve
                             </button>
@@ -276,7 +276,7 @@ const Deposits = () => {
                                 setSelectedDeposit(deposit);
                                 setShowRejectModal(true);
                               }}
-                              className="text-red-600 hover:text-red-900"
+                              className="text-shadow-grey-700 hover:text-shadow-grey-900"
                             >
                               Reject
                             </button>
@@ -290,8 +290,8 @@ const Deposits = () => {
             </div>
 
             {activeTab === 'all' && totalPages > 1 && (
-              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t">
-                <div className="text-sm text-gray-700">
+              <div className="bg-shadow-grey-50 px-4 py-3 flex items-center justify-between border-t">
+                <div className="text-sm text-shadow-grey-700">
                   Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total}
                 </div>
                 <div className="flex space-x-2">
@@ -318,10 +318,10 @@ const Deposits = () => {
 
       {/* Approve Modal */}
       {showApproveModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Approve Deposit</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-shadow-grey-600 mb-4">
               Approve deposit of R{parseFloat(selectedDeposit?.amount || 0).toFixed(2)}?
             </p>
             <div className="flex justify-end space-x-3">
@@ -330,13 +330,13 @@ const Deposits = () => {
                   setShowApproveModal(false);
                   setSelectedDeposit(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                className="px-4 py-2 text-sm font-medium text-shadow-grey-700 bg-shadow-grey-100 rounded-md hover:bg-shadow-grey-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleApprove}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-periwinkle-600 rounded-md hover:bg-periwinkle-700"
               >
                 Approve
               </button>
@@ -347,11 +347,11 @@ const Deposits = () => {
 
       {/* Reject Modal */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Reject Deposit</h2>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
                 Rejection Reason (required)
               </label>
               <textarea
@@ -359,7 +359,7 @@ const Deposits = () => {
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder="Enter reason for rejection..."
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md focus:outline-none focus:ring-2 focus:ring-true-cobalt-500"
               />
             </div>
             <div className="flex justify-end space-x-3">
@@ -369,13 +369,13 @@ const Deposits = () => {
                   setRejectionReason('');
                   setSelectedDeposit(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                className="px-4 py-2 text-sm font-medium text-shadow-grey-700 bg-shadow-grey-100 rounded-md hover:bg-shadow-grey-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReject}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-shadow-grey-700 rounded-md hover:bg-shadow-grey-800"
               >
                 Reject
               </button>
@@ -386,14 +386,14 @@ const Deposits = () => {
 
       {/* Create Deposit Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
             <h2 className="text-xl font-bold mb-4">Create Deposit</h2>
             <form onSubmit={handleCreateDeposit}>
               {/* User Search */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  User <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
+                  User <span className="text-shadow-grey-700">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -411,13 +411,13 @@ const Deposits = () => {
                       setTimeout(() => setUserSearchResults([]), 200);
                     }}
                     placeholder="Search by phone number (min 3 characters)..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md focus:outline-none focus:ring-2 focus:ring-true-cobalt-500"
                   />
                   {searchingUsers && (
-                    <div className="absolute right-3 top-2 text-gray-400 text-sm">Searching...</div>
+                    <div className="absolute right-3 top-2 text-shadow-grey-400 text-sm">Searching...</div>
                   )}
                   {userSearchResults.length > 0 && !selectedUser && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-shadow-grey-300 rounded-md shadow-lg max-h-60 overflow-auto">
                       {userSearchResults.map((user) => (
                         <button
                           key={user.id}
@@ -426,10 +426,10 @@ const Deposits = () => {
                             e.preventDefault(); // Prevent input blur
                             handleUserSelect(user);
                           }}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                          className="w-full text-left px-4 py-2 hover:bg-shadow-grey-100 focus:bg-shadow-grey-100 focus:outline-none"
                         >
                           <div className="font-medium">{user.phone_number}</div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-shadow-grey-500">
                             ID: {user.id} | Balance: R{parseFloat(user.wallet_balance || 0).toFixed(2)}
                           </div>
                         </button>
@@ -438,8 +438,8 @@ const Deposits = () => {
                   )}
                 </div>
                 {selectedUser && (
-                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded flex justify-between items-center">
-                    <span className="text-sm text-green-800">
+                  <div className="mt-2 p-2 bg-periwinkle-50 border border-periwinkle-200 rounded flex justify-between items-center">
+                    <span className="text-sm text-periwinkle-800">
                       Selected: {selectedUser.phone_number} (ID: {selectedUser.id})
                     </span>
                     <button
@@ -449,7 +449,7 @@ const Deposits = () => {
                         setUserSearch('');
                         setCreateFormData({ ...createFormData, user_id: '' });
                       }}
-                      className="text-xs text-red-600 hover:text-red-800"
+                      className="text-xs text-shadow-grey-700 hover:text-shadow-grey-900"
                     >
                       Clear
                     </button>
@@ -459,8 +459,8 @@ const Deposits = () => {
 
               {/* Amount */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount (R) <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
+                  Amount (R) <span className="text-shadow-grey-700">*</span>
                 </label>
                 <input
                   type="number"
@@ -470,21 +470,21 @@ const Deposits = () => {
                   onChange={(e) => setCreateFormData({ ...createFormData, amount: e.target.value })}
                   placeholder="0.00"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md focus:outline-none focus:ring-2 focus:ring-true-cobalt-500"
                 />
-                <p className="mt-1 text-xs text-gray-500">Minimum: R10.00</p>
+                <p className="mt-1 text-xs text-shadow-grey-500">Minimum: R10.00</p>
               </div>
 
               {/* Payment Method */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Method <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
+                  Payment Method <span className="text-shadow-grey-700">*</span>
                 </label>
                 <select
                   value={createFormData.payment_method}
                   onChange={(e) => setCreateFormData({ ...createFormData, payment_method: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md focus:outline-none focus:ring-2 focus:ring-true-cobalt-500"
                 >
                   <option value="bank_transfer">Bank Transfer</option>
                   <option value="1voucher">1Voucher</option>
@@ -496,13 +496,13 @@ const Deposits = () => {
 
               {/* Proof Type */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
                   Proof Type
                 </label>
                 <select
                   value={createFormData.proof_type}
                   onChange={(e) => setCreateFormData({ ...createFormData, proof_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md focus:outline-none focus:ring-2 focus:ring-true-cobalt-500"
                 >
                   <option value="reference_number">Reference Number</option>
                   <option value="image_url">Image URL</option>
@@ -513,7 +513,7 @@ const Deposits = () => {
               {/* Proof Value */}
               {createFormData.proof_type && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
                     {createFormData.proof_type === 'reference_number' ? 'Reference Number' : 'Image URL'}
                   </label>
                   <input
@@ -525,14 +525,14 @@ const Deposits = () => {
                         ? 'Enter bank reference number...'
                         : 'Enter image URL...'
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md focus:outline-none focus:ring-2 focus:ring-true-cobalt-500"
                   />
                 </div>
               )}
 
               {/* Notes */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
                   Notes
                 </label>
                 <textarea
@@ -540,7 +540,7 @@ const Deposits = () => {
                   onChange={(e) => setCreateFormData({ ...createFormData, notes: e.target.value })}
                   placeholder="Additional notes (optional)..."
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md focus:outline-none focus:ring-2 focus:ring-true-cobalt-500"
                 />
               </div>
 
@@ -551,13 +551,13 @@ const Deposits = () => {
                     type="checkbox"
                     checked={createFormData.auto_approve}
                     onChange={(e) => setCreateFormData({ ...createFormData, auto_approve: e.target.checked })}
-                    className="mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    className="mr-2 h-4 w-4 text-true-cobalt-600 focus:ring-true-cobalt-500 border-shadow-grey-300 rounded"
                   />
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-shadow-grey-700">
                     Auto-approve and credit wallet immediately
                   </span>
                 </label>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-shadow-grey-500">
                   If checked, the deposit will be approved and the user's wallet will be credited immediately.
                 </p>
               </div>
@@ -581,7 +581,7 @@ const Deposits = () => {
                     setUserSearch('');
                     setUserSearchResults([]);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-shadow-grey-700 bg-shadow-grey-100 rounded-md hover:bg-shadow-grey-200"
                   disabled={creating}
                 >
                   Cancel
@@ -589,7 +589,7 @@ const Deposits = () => {
                 <button
                   type="submit"
                   disabled={creating || !selectedUser}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm font-medium text-white bg-true-cobalt-600 rounded-md hover:bg-true-cobalt-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {creating ? 'Creating...' : 'Create Deposit'}
                 </button>

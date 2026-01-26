@@ -74,9 +74,9 @@ const Withdrawals = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Withdrawals</h1>
+      <h1 className="text-2xl font-bold text-shadow-grey-900 mb-6">Withdrawals</h1>
 
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-shadow-grey-200 mb-6">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => {
@@ -85,8 +85,8 @@ const Withdrawals = () => {
             }}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'pending'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-true-cobalt-500 text-true-cobalt-600'
+                : 'border-transparent text-shadow-grey-500 hover:text-shadow-grey-700'
             }`}
           >
             Pending
@@ -98,8 +98,8 @@ const Withdrawals = () => {
             }}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'all'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-true-cobalt-500 text-true-cobalt-600'
+                : 'border-transparent text-shadow-grey-500 hover:text-shadow-grey-700'
             }`}
           >
             All Withdrawals
@@ -109,45 +109,45 @@ const Withdrawals = () => {
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-600">Loading withdrawals...</div>
+          <div className="p-8 text-center text-shadow-grey-600">Loading withdrawals...</div>
         ) : withdrawals.length === 0 ? (
-          <div className="p-8 text-center text-gray-600">No withdrawals found</div>
+          <div className="p-8 text-center text-shadow-grey-600">No withdrawals found</div>
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-shadow-grey-200">
+                <thead className="bg-shadow-grey-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bank Details</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">User ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Bank Details</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Created</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-shadow-grey-200">
                   {withdrawals.map((w) => (
-                    <tr key={w.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{w.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{w.user_id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">R {parseFloat(w.amount).toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                    <tr key={w.id} className="hover:bg-shadow-grey-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">{w.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">{w.user_id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">R {parseFloat(w.amount).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm text-shadow-grey-500">
                         {w.bank_name && <div>{w.bank_name}</div>}
                         {w.account_number && <div>Acc: {w.account_number}</div>}
                         {w.account_holder && <div>{w.account_holder}</div>}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          w.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          w.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
+                          w.status === 'approved' ? 'bg-periwinkle-100 text-periwinkle-800' :
+                          w.status === 'rejected' ? 'bg-shadow-grey-200 text-shadow-grey-800' :
+                          'bg-soft-periwinkle-100 text-soft-periwinkle-800'
                         }`}>
                           {w.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-500">
                         {new Date(w.created_at).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -158,7 +158,7 @@ const Withdrawals = () => {
                                 setSelectedWithdrawal(w);
                                 setShowApproveModal(true);
                               }}
-                              className="text-green-600 hover:text-green-900 mr-4"
+                              className="text-periwinkle-600 hover:text-periwinkle-900 mr-4"
                             >
                               Approve
                             </button>
@@ -167,7 +167,7 @@ const Withdrawals = () => {
                                 setSelectedWithdrawal(w);
                                 setShowRejectModal(true);
                               }}
-                              className="text-red-600 hover:text-red-900"
+                              className="text-shadow-grey-700 hover:text-shadow-grey-900"
                             >
                               Reject
                             </button>
@@ -184,11 +184,11 @@ const Withdrawals = () => {
       </div>
 
       {showApproveModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Approve Withdrawal</h2>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
                 Payment Reference (optional)
               </label>
               <input
@@ -196,7 +196,7 @@ const Withdrawals = () => {
                 value={paymentReference}
                 onChange={(e) => setPaymentReference(e.target.value)}
                 placeholder="Enter payment reference..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md"
               />
             </div>
             <div className="flex justify-end space-x-3">
@@ -206,13 +206,13 @@ const Withdrawals = () => {
                   setSelectedWithdrawal(null);
                   setPaymentReference('');
                 }}
-                className="px-4 py-2 text-sm bg-gray-100 rounded-md"
+                className="px-4 py-2 text-sm bg-shadow-grey-100 rounded-md"
               >
                 Cancel
               </button>
               <button
                 onClick={handleApprove}
-                className="px-4 py-2 text-sm text-white bg-green-600 rounded-md"
+                className="px-4 py-2 text-sm text-white bg-periwinkle-600 rounded-md"
               >
                 Approve
               </button>
@@ -222,18 +222,18 @@ const Withdrawals = () => {
       )}
 
       {showRejectModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Reject Withdrawal</h2>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
                 Rejection Reason
               </label>
               <textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md"
               />
             </div>
             <div className="flex justify-end space-x-3">
@@ -243,13 +243,13 @@ const Withdrawals = () => {
                   setRejectionReason('');
                   setSelectedWithdrawal(null);
                 }}
-                className="px-4 py-2 text-sm bg-gray-100 rounded-md"
+                className="px-4 py-2 text-sm bg-shadow-grey-100 rounded-md"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReject}
-                className="px-4 py-2 text-sm text-white bg-red-600 rounded-md"
+                className="px-4 py-2 text-sm text-white bg-shadow-grey-700 rounded-md"
               >
                 Reject
               </button>

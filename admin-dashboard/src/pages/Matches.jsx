@@ -71,10 +71,10 @@ const Matches = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Matches</h1>
+        <h1 className="text-2xl font-bold text-shadow-grey-900">Matches</h1>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          className="px-4 py-2 bg-true-cobalt-600 text-white rounded-md hover:bg-true-cobalt-700"
         >
           Create Match
         </button>
@@ -87,21 +87,21 @@ const Matches = () => {
           <div className="p-8 text-center">No matches found</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-shadow-grey-200">
+              <thead className="bg-shadow-grey-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Match</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Event</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Yes Odds</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No Odds</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Match</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Event</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Yes Odds</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">No Odds</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-shadow-grey-200">
                 {matches.map((match) => (
-                  <tr key={match.id} className="hover:bg-gray-50">
+                  <tr key={match.id} className="hover:bg-shadow-grey-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{match.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {match.home_team} vs {match.away_team}
@@ -111,9 +111,9 @@ const Matches = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{match.no_odds}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        match.status === 'settled' ? 'bg-green-100 text-green-800' :
-                        match.status === 'active' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
+                        match.status === 'settled' ? 'bg-periwinkle-100 text-periwinkle-800' :
+                        match.status === 'active' ? 'bg-true-cobalt-100 text-true-cobalt-800' :
+                        'bg-shadow-grey-100 text-shadow-grey-800'
                       }`}>
                         {match.status}
                       </span>
@@ -125,7 +125,7 @@ const Matches = () => {
                             setSelectedMatch(match);
                             setShowSettleModal(true);
                           }}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="text-true-cobalt-600 hover:text-true-cobalt-900"
                         >
                           Settle
                         </button>
@@ -140,13 +140,13 @@ const Matches = () => {
       </div>
 
       {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Create Match</h2>
             <form onSubmit={handleCreate}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Home Team</label>
+                  <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Home Team</label>
                   <input
                     type="text"
                     required
@@ -156,7 +156,7 @@ const Matches = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Away Team</label>
+                  <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Away Team</label>
                   <input
                     type="text"
                     required
@@ -166,7 +166,7 @@ const Matches = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Event Description</label>
+                  <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Event Description</label>
                   <input
                     type="text"
                     required
@@ -177,7 +177,7 @@ const Matches = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Yes Odds</label>
+                    <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Yes Odds</label>
                     <input
                       type="number"
                       step="0.01"
@@ -188,7 +188,7 @@ const Matches = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">No Odds</label>
+                    <label className="block text-sm font-medium text-shadow-grey-700 mb-2">No Odds</label>
                     <input
                       type="number"
                       step="0.01"
@@ -204,13 +204,13 @@ const Matches = () => {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-sm bg-gray-100 rounded-md"
+                  className="px-4 py-2 text-sm bg-shadow-grey-100 rounded-md"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-md"
+                  className="px-4 py-2 text-sm text-white bg-true-cobalt-600 rounded-md"
                 >
                   Create
                 </button>
@@ -221,12 +221,12 @@ const Matches = () => {
       )}
 
       {showSettleModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Settle Match</h2>
             <p className="mb-4">{selectedMatch?.home_team} vs {selectedMatch?.away_team}</p>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Result</label>
+              <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Result</label>
               <select
                 value={settleResult}
                 onChange={(e) => setSettleResult(e.target.value)}
@@ -242,13 +242,13 @@ const Matches = () => {
                   setShowSettleModal(false);
                   setSelectedMatch(null);
                 }}
-                className="px-4 py-2 text-sm bg-gray-100 rounded-md"
+                className="px-4 py-2 text-sm bg-shadow-grey-100 rounded-md"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSettle}
-                className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-md"
+                className="px-4 py-2 text-sm text-white bg-true-cobalt-600 rounded-md"
               >
                 Settle
               </button>

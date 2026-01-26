@@ -3,20 +3,20 @@ import { analyticsService } from '../services/analyticsService';
 
 const StatCard = ({ title, value, icon, color }) => {
   const colors = {
-    blue: 'text-blue-600 bg-blue-50',
-    green: 'text-green-600 bg-green-50',
-    yellow: 'text-yellow-600 bg-yellow-50',
-    red: 'text-red-600 bg-red-50',
-    purple: 'text-purple-600 bg-purple-50',
-    indigo: 'text-indigo-600 bg-indigo-50',
+    blue: 'text-true-cobalt-600 bg-true-cobalt-50',
+    green: 'text-periwinkle-600 bg-periwinkle-50',
+    yellow: 'text-soft-periwinkle-400 bg-soft-periwinkle-50',
+    red: 'text-shadow-grey-700 bg-shadow-grey-100',
+    purple: 'text-lavender-mist-600 bg-lavender-mist-50',
+    indigo: 'text-true-cobalt-600 bg-true-cobalt-50',
   };
 
   return (
     <div className="bg-white p-6 rounded-lg shadow">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium text-gray-600">{title}</h3>
-          <p className={`text-3xl font-bold mt-2 ${colors[color]?.split(' ')[0] || 'text-gray-900'}`}>
+          <h3 className="text-sm font-medium text-shadow-grey-600">{title}</h3>
+          <p className={`text-3xl font-bold mt-2 ${colors[color]?.split(' ')[0] || 'text-shadow-grey-900'}`}>
             {typeof value === 'number' && value >= 1000
               ? (value / 1000).toFixed(1) + 'K'
               : typeof value === 'number' && value < 1 && value > 0
@@ -26,7 +26,7 @@ const StatCard = ({ title, value, icon, color }) => {
               : value}
           </p>
         </div>
-        <div className={`text-4xl ${colors[color]?.split(' ')[1] || 'bg-gray-50'} p-3 rounded-lg`}>
+        <div className={`text-4xl ${colors[color]?.split(' ')[1] || 'bg-shadow-grey-50'} p-3 rounded-lg`}>
           {icon}
         </div>
       </div>
@@ -73,14 +73,14 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-600">Loading dashboard...</div>
+        <div className="text-shadow-grey-600">Loading dashboard...</div>
       </div>
     );
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-shadow-grey-900 mb-6">Dashboard</h1>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -113,20 +113,20 @@ const Dashboard = () => {
       {/* Revenue Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-600">Total Deposits</h3>
-          <p className="text-3xl font-bold text-green-600 mt-2">
+          <h3 className="text-sm font-medium text-shadow-grey-600">Total Deposits</h3>
+          <p className="text-3xl font-bold text-periwinkle-600 mt-2">
             R {stats.total_deposits.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-600">Total Withdrawals</h3>
-          <p className="text-3xl font-bold text-red-600 mt-2">
+          <h3 className="text-sm font-medium text-shadow-grey-600">Total Withdrawals</h3>
+          <p className="text-3xl font-bold text-shadow-grey-700 mt-2">
             R {stats.total_withdrawals.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-600">Net Revenue</h3>
-          <p className={`text-3xl font-bold mt-2 ${stats.net_revenue >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <h3 className="text-sm font-medium text-shadow-grey-600">Net Revenue</h3>
+          <p className={`text-3xl font-bold mt-2 ${stats.net_revenue >= 0 ? 'text-periwinkle-600' : 'text-shadow-grey-700'}`}>
             R {stats.net_revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>

@@ -34,12 +34,12 @@ const Reports = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Analytics & Reports</h1>
+      <h1 className="text-2xl font-bold text-shadow-grey-900 mb-6">Analytics & Reports</h1>
 
       <div className="bg-white p-4 rounded-lg shadow mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+            <label className="block text-sm font-medium text-shadow-grey-700 mb-2">From Date</label>
             <input
               type="date"
               value={dateFrom}
@@ -48,7 +48,7 @@ const Reports = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+            <label className="block text-sm font-medium text-shadow-grey-700 mb-2">To Date</label>
             <input
               type="date"
               value={dateTo}
@@ -64,35 +64,35 @@ const Reports = () => {
           <h2 className="text-xl font-bold mb-4">User Engagement</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <div className="text-sm text-gray-600">Total Users</div>
+              <div className="text-sm text-shadow-grey-600">Total Users</div>
               <div className="text-2xl font-bold">{userEngagement.total_users}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-600">Active (24h)</div>
+              <div className="text-sm text-shadow-grey-600">Active (24h)</div>
               <div className="text-2xl font-bold">{userEngagement.active_users_24h}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-600">Active (7d)</div>
+              <div className="text-sm text-shadow-grey-600">Active (7d)</div>
               <div className="text-2xl font-bold">{userEngagement.active_users_7d}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-600">Active (30d)</div>
+              <div className="text-sm text-shadow-grey-600">Active (30d)</div>
               <div className="text-2xl font-bold">{userEngagement.active_users_30d}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-600">New Today</div>
+              <div className="text-sm text-shadow-grey-600">New Today</div>
               <div className="text-2xl font-bold">{userEngagement.new_users_today}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-600">New (7d)</div>
+              <div className="text-sm text-shadow-grey-600">New (7d)</div>
               <div className="text-2xl font-bold">{userEngagement.new_users_7d}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-600">Avg Bets/User</div>
+              <div className="text-sm text-shadow-grey-600">Avg Bets/User</div>
               <div className="text-2xl font-bold">{userEngagement.average_bets_per_user.toFixed(1)}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-600">Avg Deposit/User</div>
+              <div className="text-sm text-shadow-grey-600">Avg Deposit/User</div>
               <div className="text-2xl font-bold">R {userEngagement.average_deposit_per_user.toFixed(2)}</div>
             </div>
           </div>
@@ -103,24 +103,24 @@ const Reports = () => {
         <div className="p-6">
           <h2 className="text-xl font-bold mb-4">Revenue Breakdown by Game Type</h2>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-shadow-grey-200">
+              <thead className="bg-shadow-grey-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Game Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Wagered</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Payouts</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Net Revenue</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bet Count</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Game Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Total Wagered</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Total Payouts</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Net Revenue</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Bet Count</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-shadow-grey-200">
                 {revenueBreakdown.map((item) => (
-                  <tr key={item.game_type} className="hover:bg-gray-50">
+                  <tr key={item.game_type} className="hover:bg-shadow-grey-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{item.game_type}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">R {item.total_wagered.toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">R {item.total_payouts.toFixed(2)}</td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${
-                      item.net_revenue >= 0 ? 'text-green-600' : 'text-red-600'
+                      item.net_revenue >= 0 ? 'text-periwinkle-600' : 'text-shadow-grey-700'
                     }`}>
                       R {item.net_revenue.toFixed(2)}
                     </td>

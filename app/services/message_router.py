@@ -7,7 +7,7 @@ handlers based on user state and message content.
 import logging
 import re
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -58,6 +58,10 @@ class UserState:
     COLOR_GAME_ENTER_AMOUNT = "color_game_enter_amount"
     VIEWING_COLOR_GAME_RESULT = "viewing_color_game_result"
     VIEWING_PICK3_RESULT = "viewing_pick3_result"
+    LUCKY_WHEEL_CONFIRM = "lucky_wheel_confirm"
+    COLOR_GAME_CONFIRM = "color_game_confirm"
+    PICK3_CONFIRM = "pick3_confirm"
+    FOOTBALL_CONFIRM = "football_confirm"
 
 
 class MessageRouter:
@@ -77,6 +81,200 @@ class MessageRouter:
         """
         self.user_states: Dict[int, Dict[str, Any]] = {}
         self.user_service = UserService()
+
+    def _push_to_back_stack(self, user_id: int, state: str) -> None:
+        """
+        Push a state to the user's back stack.
+
+        Args:
+            user_id: User ID
+            state: State to push to back stack
+        """
+        if user_id not in self.user_states:
+            self.user_states[user_id] = {}
+        
+        if "back_stack" not in self.user_states[user_id]:
+            self.user_states[user_id]["back_stack"] = []
+        
+        # Only push if state is not None and not empty
+        if state:
+            self.user_states[user_id]["back_stack"].append(state)
+
+    def _pop_from_back_stack(self, user_id: int) -> Optional[str]:
+        """
+        Pop a state from the user's back stack.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            Previous state or None if stack is empty
+        """
+        if user_id not in self.user_states:
+            return None
+        
+        back_stack = self.user_states[user_id].get("back_stack", [])
+        if back_stack:
+            return back_stack.pop()
+        return None
+
+    def _set_state(self, user_id: int, new_state: str, preserve_current: bool = True) -> None:
+        """
+        Set a new state and manage back stack.
+
+        Args:
+            user_id: User ID
+            new_state: New state to set
+            preserve_current: If True, push current state to back stack before setting new one
+        """
+        if user_id not in self.user_states:
+            self.user_states[user_id] = {}
+        
+        if preserve_current:
+            current_state = self.user_states[user_id].get("state")
+            if current_state:
+                self._push_to_back_stack(user_id, current_state)
+        
+        self.user_states[user_id]["state"] = new_state
+
+    def _clear_state(self, user_id: int) -> None:
+        """
+        Clear user state and back stack.
+
+        Args:
+            user_id: User ID
+        """
+        if user_id in self.user_states:
+            self.user_states.pop(user_id, None)
+
+    def _validate_pick3_numbers(self, message: str) -> List[int]:
+        """
+        Validate exactly 3 numbers (1-36), no duplicates.
+
+        Args:
+            message: Message text containing numbers
+
+        Returns:
+            List of 3 validated numbers
+
+        Raises:
+            ValueError: If validation fails
+        """
+        numbers = re.findall(r"\d+", message)
+        
+        if len(numbers) != 3:
+            raise ValueError("Please select exactly 3 numbers (1-36). Example: 7 14 23")
+        
+        try:
+            selected_numbers = [int(n) for n in numbers]
+        except ValueError:
+            raise ValueError("Invalid numbers. Please enter 3 numbers between 1 and 36.")
+        
+        # Check for duplicates
+        if len(selected_numbers) != len(set(selected_numbers)):
+            raise ValueError("Duplicate numbers not allowed. Please select 3 different numbers.")
+        
+        # Validate range
+        for num in selected_numbers:
+            if num < 1 or num > 36:
+                raise ValueError(f"Number {num} is out of range. Please select numbers between 1 and 36.")
+        
+        return selected_numbers
+
+    def _validate_lucky_wheel_number(self, message: str) -> int:
+        """
+        Validate number 1-12 only.
+
+        Args:
+            message: Message text containing number
+
+        Returns:
+            Validated number (1-12)
+
+        Raises:
+            ValueError: If validation fails
+        """
+        try:
+            number = int(message.strip())
+        except ValueError:
+            raise ValueError("Invalid input! Please enter a number between 1 and 12.")
+        
+        if number < 1 or number > 12:
+            raise ValueError(f"Number {number} is out of range. Please select a number between 1 and 12.")
+        
+        return number
+
+    def _validate_color(self, message: str) -> str:
+        """
+        Validate color input (accept R/Red, G/Green, B/Blue, Y/Yellow).
+
+        Args:
+            message: Message text containing color
+
+        Returns:
+            Validated color name (lowercase)
+
+        Raises:
+            ValueError: If validation fails
+        """
+        color_input = message.strip().lower()
+        
+        # Map shortcuts to full names
+        color_map = {
+            "r": "red",
+            "g": "green",
+            "b": "blue",
+            "y": "yellow",
+            "red": "red",
+            "green": "green",
+            "blue": "blue",
+            "yellow": "yellow",
+        }
+        
+        selected_color = color_map.get(color_input)
+        
+        if not selected_color:
+            raise ValueError(
+                "Invalid color! Please select: Red (R), Green (G), Blue (B), or Yellow (Y)."
+            )
+        
+        return selected_color
+
+    def _validate_stake(
+        self, message: str, min_amount: Decimal, max_amount: Decimal
+    ) -> Decimal:
+        """
+        Validate stake amount within limits.
+
+        Args:
+            message: Message text containing amount
+            min_amount: Minimum allowed amount
+            max_amount: Maximum allowed amount
+
+        Returns:
+            Validated stake amount
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Extract amount from message (handles "R50", "50", "R50.00", etc.)
+        amount_match = re.search(r"r?(\d+(?:\.\d{1,2})?)", message.lower())
+        
+        if not amount_match:
+            raise ValueError(f"Invalid amount format. Example: R{float(min_amount):.2f} or {float(min_amount):.0f}")
+        
+        try:
+            stake_amount = Decimal(amount_match.group(1))
+        except (ValueError, InvalidOperation):
+            raise ValueError(f"Invalid amount. Please enter a number between R{float(min_amount):.2f} and R{float(max_amount):.2f}.")
+        
+        if stake_amount < min_amount:
+            raise ValueError(f"Minimum bet is R{float(min_amount):.2f}. Please enter a valid amount.")
+        
+        if stake_amount > max_amount:
+            raise ValueError(f"Maximum bet is R{float(max_amount):.2f}. Please enter a valid amount.")
+        
+        return stake_amount
 
     async def route_message(
         self,
@@ -160,15 +358,23 @@ class MessageRouter:
             if normalized_phone:
                 await whatsapp_service.send_message(
                     normalized_phone,
-                    "❌ Invalid phone number format. Please try again.",
+                    "❌ Invalid phone number format.\n\nReply 'menu' to restart.",
                 )
         except Exception as e:
             logger.error(f"Error routing message: {e}", exc_info=True)
             if normalized_phone:
                 try:
+                    # Clear any broken state
+                    user_id = None
+                    if normalized_phone:
+                        user = self.user_service.get_user_by_phone(normalized_phone, db)
+                        if user:
+                            user_id = user.id
+                            self._clear_state(user_id)
+                    
                     await whatsapp_service.send_message(
                         normalized_phone,
-                        "Sorry, something went wrong. Please try again later.",
+                        "❌ Something went wrong.\n\nReply 'menu' to restart.",
                     )
                 except Exception as send_error:
                     logger.error(
@@ -220,16 +426,20 @@ Reply with the number of your choice."""
             UserState.VIEWING_HELP_MENU: "📍 Main Menu > Help",
             UserState.LUCKY_WHEEL_SELECT_NUMBER: "📍 Main Menu > Games > Lucky Wheel > Select Number",
             UserState.LUCKY_WHEEL_ENTER_AMOUNT: "📍 Main Menu > Games > Lucky Wheel > Enter Amount",
+            UserState.LUCKY_WHEEL_CONFIRM: "📍 Main Menu > Games > Lucky Wheel > Confirm",
             UserState.COLOR_GAME_SELECT_COLOR: "📍 Main Menu > Games > Color Game > Select Color",
             UserState.COLOR_GAME_ENTER_AMOUNT: "📍 Main Menu > Games > Color Game > Enter Amount",
+            UserState.COLOR_GAME_CONFIRM: "📍 Main Menu > Games > Color Game > Confirm",
             UserState.VIEWING_COLOR_GAME_RESULT: "📍 Main Menu > Games > Color Game > Result",
             UserState.PICK3_SELECT_NUMBERS: "📍 Main Menu > Games > Pick 3 > Select Numbers",
             UserState.PICK3_ENTER_AMOUNT: "📍 Main Menu > Games > Pick 3 > Enter Amount",
+            UserState.PICK3_CONFIRM: "📍 Main Menu > Games > Pick 3 > Confirm",
             UserState.VIEWING_PICK3_RESULT: "📍 Main Menu > Games > Pick 3 > Result",
             UserState.VIEWING_LUCKY_WHEEL_RESULT: "📍 Main Menu > Games > Lucky Wheel > Result",
             UserState.FOOTBALL_SELECT_MATCH: "📍 Main Menu > Games > Football Yes/No > Select Match",
             UserState.FOOTBALL_SELECT_CHOICE: "📍 Main Menu > Games > Football Yes/No > Select Choice",
             UserState.FOOTBALL_ENTER_AMOUNT: "📍 Main Menu > Games > Football Yes/No > Enter Amount",
+            UserState.FOOTBALL_CONFIRM: "📍 Main Menu > Games > Football Yes/No > Confirm",
         }
 
         return breadcrumbs.get(state, "📍 Main Menu")
@@ -252,11 +462,17 @@ Reply with the number of your choice."""
         """
         message_lower = message.lower().strip()
 
+        # Check for global commands first
+        global_response = await self._handle_global_command(user, message, None, db)
+        if global_response is not None:
+            return global_response
+
         # Pick 3 command - check if user is in Pick 3 flow
         state = self.user_states.get(user.id)
         if state and state.get("state") in [
             UserState.PICK3_SELECT_NUMBERS,
             UserState.PICK3_ENTER_AMOUNT,
+            UserState.PICK3_CONFIRM,
         ]:
             return await self._handle_pick3_flow(user, message, state, db)
 
@@ -270,6 +486,7 @@ Reply with the number of your choice."""
             UserState.FOOTBALL_SELECT_MATCH,
             UserState.FOOTBALL_SELECT_CHOICE,
             UserState.FOOTBALL_ENTER_AMOUNT,
+            UserState.FOOTBALL_CONFIRM,
         ]:
             return await self._handle_football_yesno_flow(user, message, state, db)
 
@@ -283,13 +500,7 @@ Reply with the number of your choice."""
             "2": lambda: self._show_games(user),
             "3": lambda: self._start_deposit_flow(user),
             "4": lambda: self._show_help(user),
-            "menu": lambda: self._show_main_menu(),
             "start": lambda: self._show_main_menu(),
-            "balance": lambda: self._check_balance(user, db),
-            "games": lambda: self._show_games(user),
-            "help": lambda: self._show_help(user),
-            "deposit": lambda: self._start_deposit_flow(user),
-            "withdraw": lambda: self._start_withdrawal_flow(user, db),
             "wheel": lambda: self._show_lucky_wheel_instructions(),
             "color": lambda: self._show_color_game_instructions(),
         }
@@ -323,9 +534,7 @@ Reply with the number of your choice."""
         balance = wallet.balance if wallet else Decimal("0.00")
 
         # Set state to track that user is viewing balance sub-menu
-        self.user_states[user.id] = {
-            "state": UserState.VIEWING_BALANCE_MENU,
-        }
+        self._set_state(user.id, UserState.VIEWING_BALANCE_MENU, preserve_current=False)
 
         return f"""💰 Your Balance: R{float(balance):.2f}
 
@@ -350,9 +559,7 @@ Reply with number."""
         """
         # Track that user is viewing games menu
         if user:
-            self.user_states[user.id] = {
-                "state": UserState.VIEWING_GAMES_MENU,
-            }
+            self._set_state(user.id, UserState.VIEWING_GAMES_MENU, preserve_current=False)
 
         breadcrumb = self._get_breadcrumb(UserState.VIEWING_GAMES_MENU)
         return f"""{breadcrumb}
@@ -377,13 +584,8 @@ Reply with game number."""
         Returns:
             Deposit initiation message
         """
-        # Store previous state if exists
-        previous_state = self.user_states.get(user.id, {}).get("state")
-        self.user_states[user.id] = {
-            "state": UserState.AWAITING_DEPOSIT_AMOUNT,
-            "previous_state": previous_state,
-            "original_previous_state": previous_state,  # Store original for back navigation
-        }
+        # Set new state and push current to back stack
+        self._set_state(user.id, UserState.AWAITING_DEPOSIT_AMOUNT, preserve_current=True)
 
         return """💰 DEPOSIT MONEY
 
@@ -407,9 +609,7 @@ Reply '0' or 'b' to go back."""
         """
         # Track that user is viewing help menu
         if user:
-            self.user_states[user.id] = {
-                "state": UserState.VIEWING_HELP_MENU,
-            }
+            self._set_state(user.id, UserState.VIEWING_HELP_MENU, preserve_current=False)
 
         return """❓ HELP & COMMANDS:
 
@@ -441,6 +641,87 @@ Reply '0' or 'b' to go back."""
 
 Reply with number."""
 
+    def _is_global_command(self, message: str, current_state: Optional[str] = None) -> bool:
+        """
+        Check if message is a global command.
+
+        Args:
+            message: Message text
+            current_state: Current user state (for special cases)
+
+        Returns:
+            True if message is a global command
+        """
+        message_lower = message.lower().strip()
+        
+        # Special case: In COLOR_GAME_SELECT_COLOR, "b" is a valid color (blue)
+        # So "b" is NOT a global command in that state
+        if current_state == UserState.COLOR_GAME_SELECT_COLOR:
+            global_commands = ["menu", "help", "balance", "games", "deposit", "withdraw", "0", "back"]
+        else:
+            global_commands = ["menu", "help", "balance", "games", "deposit", "withdraw", "0", "b", "back"]
+        
+        return message_lower in global_commands
+
+    async def _handle_global_command(
+        self,
+        user: User,
+        message: str,
+        state: Optional[Dict[str, Any]],
+        db: Session,
+    ) -> Optional[str]:
+        """
+        Handle global commands that work from any screen.
+
+        Args:
+            user: User instance
+            message: Message text
+            state: Current user state (optional)
+            db: Database session
+
+        Returns:
+            Response message if command was handled, None otherwise
+        """
+        message_lower = message.lower().strip()
+        current_state = state.get("state") if state else None
+
+        if message_lower == "menu":
+            self._clear_state(user.id)
+            return self._show_main_menu()
+        
+        elif message_lower in ["0", "b", "back"]:
+            # Special case: In COLOR_GAME_SELECT_COLOR, "b" is a valid color (blue)
+            # So we only handle "0" and "back" in that state
+            if current_state == UserState.COLOR_GAME_SELECT_COLOR:
+                if message_lower in ["0", "back"]:
+                    return await self._handle_back_navigation(user, state, db)
+                return None  # "b" is not a global command here
+            else:
+                if state:
+                    return await self._handle_back_navigation(user, state, db)
+                else:
+                    self._clear_state(user.id)
+                    return self._show_main_menu()
+        
+        elif message_lower == "help":
+            if user:
+                self._set_state(user.id, UserState.VIEWING_HELP_MENU, preserve_current=False)
+            return self._show_help(user)
+        
+        elif message_lower == "balance":
+            return self._check_balance(user, db)
+        
+        elif message_lower == "games":
+            return self._show_games(user)
+        
+        elif message_lower == "deposit":
+            return await self._start_deposit_flow(user)
+        
+        elif message_lower == "withdraw":
+            return await self._start_withdrawal_flow(user, db)
+        
+        return None  # Not a global command
+
     async def _handle_state_flow(
         self,
         user: User,
@@ -465,15 +746,11 @@ Reply with number."""
         message_lower = message.lower().strip()
         current_state = state.get("state") if state else None
 
-        # Handle back navigation
-        # Special case: In COLOR_GAME_SELECT_COLOR, "b" is a valid color shortcut (blue)
-        # So we only check for "back" and "0", not "b"
-        if current_state == UserState.COLOR_GAME_SELECT_COLOR:
-            if message_lower in ["back", "0"]:
-                return await self._handle_back_navigation(user, state, db)
-        else:
-            if message_lower in ["back", "0", "b"]:
-                return await self._handle_back_navigation(user, state, db)
+        # Check for global commands first (must work from any screen)
+        if self._is_global_command(message, current_state):
+            global_response = await self._handle_global_command(user, message, state, db)
+            if global_response is not None:
+                return global_response
 
         # Handle cancel - go back one step or to main menu
         if message_lower in ["cancel", "c"]:
@@ -500,22 +777,26 @@ Reply with number."""
         elif current_state in [
             UserState.PICK3_SELECT_NUMBERS,
             UserState.PICK3_ENTER_AMOUNT,
+            UserState.PICK3_CONFIRM,
         ]:
             return await self._handle_pick3_flow(user, message, state, db)
         elif current_state in [
             UserState.FOOTBALL_SELECT_MATCH,
             UserState.FOOTBALL_SELECT_CHOICE,
             UserState.FOOTBALL_ENTER_AMOUNT,
+            UserState.FOOTBALL_CONFIRM,
         ]:
             return await self._handle_football_yesno_flow(user, message, state, db)
         elif current_state in [
             UserState.LUCKY_WHEEL_SELECT_NUMBER,
             UserState.LUCKY_WHEEL_ENTER_AMOUNT,
+            UserState.LUCKY_WHEEL_CONFIRM,
         ]:
             return await self._handle_lucky_wheel_flow(user, message, state, db)
         elif current_state in [
             UserState.COLOR_GAME_SELECT_COLOR,
             UserState.COLOR_GAME_ENTER_AMOUNT,
+            UserState.COLOR_GAME_CONFIRM,
         ]:
             return await self._handle_color_game_flow(user, message, state, db)
         elif current_state in [
@@ -526,7 +807,7 @@ Reply with number."""
             return await self._handle_game_result(user, message, state, db)
         else:
             # Unknown state, clear and return to main menu
-            self.user_states.pop(user.id, None)
+            self._clear_state(user.id)
             return await self._handle_main_menu(user, message, db)
 
     async def _handle_balance_menu(
@@ -764,13 +1045,9 @@ Reply with number."""
             if amount > 10000:
                 return "❌ Maximum deposit is R10,000. Please enter a valid amount:"
 
-            # Store amount in state and track previous state
+            # Store amount in state and move to next step
             state["amount"] = amount
-            state["previous_state"] = UserState.AWAITING_DEPOSIT_AMOUNT
-            # Preserve original_previous_state if it exists
-            if "original_previous_state" not in state:
-                state["original_previous_state"] = state.get("previous_state")
-            state["state"] = UserState.AWAITING_DEPOSIT_METHOD
+            self._set_state(user.id, UserState.AWAITING_DEPOSIT_METHOD, preserve_current=True)
 
             return f"""💳 PAYMENT METHOD
 
@@ -827,25 +1104,33 @@ Reply with the number (1-4) or '0'/'b' to go back."""
 
         payment_method, method_name = method_info
 
-        # Store method in state and track previous state
-        state["payment_method"] = payment_method
-        state["method_name"] = method_name
-        state["previous_state"] = UserState.AWAITING_DEPOSIT_METHOD
-        # Preserve original_previous_state if it exists
-        if "original_previous_state" not in state:
-            original_prev = state.get("original_previous_state")
-            if not original_prev:
-                # Find the original previous state by looking back
-                original_prev = state.get("previous_state")
-            state["original_previous_state"] = original_prev
-        state["state"] = UserState.AWAITING_DEPOSIT_PROOF
-
         amount = state["amount"]
 
-        # Provide payment instructions based on method
-        instructions = self._get_payment_instructions(payment_method, amount)
+        # Create deposit ticket immediately when method is selected
+        try:
+            deposit = deposit_service.create_deposit_request(
+                user_id=user.id,
+                amount=amount,
+                payment_method=payment_method,
+                proof_type=None,  # Proof not yet received
+                proof_value=None,
+                notes=f"Deposit via {method_name} - awaiting proof",
+                db=db,
+            )
+            db.commit()
 
-        return f"""{instructions}
+            # Store method and deposit_id in state and move to next step
+            state["payment_method"] = payment_method
+            state["method_name"] = method_name
+            state["deposit_id"] = deposit.id
+            self._set_state(user.id, UserState.AWAITING_DEPOSIT_PROOF, preserve_current=True)
+
+            # Provide payment instructions based on method
+            instructions = self._get_payment_instructions(payment_method, amount)
+
+            return f"""{instructions}
+
+Deposit ID: #{deposit.id}
 
 Once you've made the payment, send us the proof:
 📸 Send payment reference number or screenshot
@@ -853,6 +1138,13 @@ Once you've made the payment, send us the proof:
 Example: "REF123456" or attach image
 
 Reply '0' or 'b' to go back."""
+
+        except Exception as e:
+            logger.error(f"Error creating deposit ticket: {e}", exc_info=True)
+            self._clear_state(user.id)
+            return f"""❌ Error creating deposit request: {str(e)}
+
+Reply 'menu' to restart."""
 
     def _get_payment_instructions(
         self, method: PaymentMethod, amount: Decimal
@@ -926,29 +1218,43 @@ Reference: Your phone number"""
         amount = state["amount"]
         payment_method = state["payment_method"]
         method_name = state["method_name"]
+        deposit_id = state.get("deposit_id")
 
-        # Create deposit request
+        # Update existing deposit with proof
         try:
-            deposit = deposit_service.create_deposit_request(
-                user_id=user.id,
-                amount=amount,
-                payment_method=payment_method,
-                proof_type="reference_number",
-                proof_value=message.strip(),
-                notes="Submitted via WhatsApp",
-                db=db,
-            )
-
-            db.commit()
+            if not deposit_id:
+                # Fallback: create new deposit if deposit_id is missing
+                deposit = deposit_service.create_deposit_request(
+                    user_id=user.id,
+                    amount=amount,
+                    payment_method=payment_method,
+                    proof_type="reference_number",
+                    proof_value=message.strip(),
+                    notes="Submitted via WhatsApp",
+                    db=db,
+                )
+                db.commit()
+            else:
+                # Update existing deposit with proof
+                from app.models.deposit import Deposit
+                deposit = db.query(Deposit).filter(Deposit.id == deposit_id).first()
+                if not deposit:
+                    raise ValueError(f"Deposit {deposit_id} not found")
+                
+                deposit.proof_type = "reference_number"
+                deposit.proof_value = message.strip()
+                deposit.notes = f"Proof received via WhatsApp: {message.strip()}"
+                db.commit()
 
             # Clear state
-            self.user_states.pop(user.id, None)
+            self._clear_state(user.id)
 
             return f"""✅ DEPOSIT REQUEST SUBMITTED
 
 Deposit ID: #{deposit.id}
 Amount: R{float(amount):.2f}
 Method: {method_name}
+Proof: Received ✓
 
 Your deposit is being reviewed.
 You'll receive a notification within 5-30 minutes.
@@ -956,21 +1262,17 @@ You'll receive a notification within 5-30 minutes.
 Reply 'menu' for main menu."""
 
         except ValueError as e:
-            logger.error(f"Error creating deposit request: {e}")
-            self.user_states.pop(user.id, None)
+            logger.error(f"Error creating deposit request: {e}", exc_info=True)
+            self._clear_state(user.id)
             return f"""❌ {str(e)}
 
-Please try again or contact support.
-
-Reply 'menu' for main menu."""
+Reply 'menu' to restart."""
         except Exception as e:
-            logger.error(f"Error creating deposit request: {e}")
-            self.user_states.pop(user.id, None)
-            return f"""❌ Error submitting deposit request.
+            logger.error(f"Error creating deposit request: {e}", exc_info=True)
+            self._clear_state(user.id)
+            return f"""❌ Error submitting deposit request: {str(e)}
 
-Please try again or contact support.
-
-Reply 'menu' for main menu."""
+Reply 'menu' to restart."""
 
     async def _start_withdrawal_flow(self, user: User, db: Session) -> str:
         """
@@ -995,13 +1297,8 @@ Minimum withdrawal: R{float(withdrawal_service.MIN_WITHDRAWAL):.2f}
 Please deposit more funds or play games to win!
 Reply 'menu' for main menu."""
 
-            # Store previous state if exists
-            previous_state = self.user_states.get(user.id, {}).get("state")
-            self.user_states[user.id] = {
-                "state": UserState.AWAITING_WITHDRAWAL_AMOUNT,
-                "previous_state": previous_state,
-                "original_previous_state": previous_state,  # Store original for back navigation
-            }
+            # Set new state and push current to back stack
+            self._set_state(user.id, UserState.AWAITING_WITHDRAWAL_AMOUNT, preserve_current=True)
 
             return f"""💸 WITHDRAW MONEY
 
@@ -1053,13 +1350,9 @@ Reply '0' or 'b' to go back."""
             if amount > balance:
                 return f"❌ Insufficient balance. You have R{float(balance):.2f}. Please enter a valid amount:"
 
-            # Store amount and track previous state
+            # Store amount and move to next step
             state["amount"] = amount
-            state["previous_state"] = UserState.AWAITING_WITHDRAWAL_AMOUNT
-            # Preserve original_previous_state if it exists
-            if "original_previous_state" not in state:
-                state["original_previous_state"] = state.get("previous_state")
-            state["state"] = UserState.AWAITING_WITHDRAWAL_METHOD
+            self._set_state(user.id, UserState.AWAITING_WITHDRAWAL_METHOD, preserve_current=True)
 
             return f"""💳 WITHDRAWAL METHOD
 
@@ -1116,15 +1409,7 @@ Reply with the number (1-3) or '0'/'b' to go back."""
 
         state["withdrawal_method"] = withdrawal_method
         state["method_name"] = method_name
-        state["previous_state"] = UserState.AWAITING_WITHDRAWAL_METHOD
-        # Preserve original_previous_state if it exists
-        if "original_previous_state" not in state:
-            original_prev = state.get("original_previous_state")
-            if not original_prev:
-                # Find the original previous state by looking back
-                original_prev = state.get("previous_state")
-            state["original_previous_state"] = original_prev
-        state["state"] = UserState.AWAITING_WITHDRAWAL_DETAILS
+        self._set_state(user.id, UserState.AWAITING_WITHDRAWAL_DETAILS, preserve_current=True)
 
         if withdrawal_method == WithdrawalMethod.BANK_TRANSFER:
             return """🏦 BANK DETAILS
@@ -1236,18 +1521,17 @@ You'll receive a notification once approved.
 Reply 'menu' for main menu."""
 
         except ValueError as e:
-            self.user_states.pop(user.id, None)
+            logger.error(f"Error creating withdrawal request: {e}", exc_info=True)
+            self._clear_state(user.id)
             return f"""❌ {str(e)}
 
-Reply 'menu' for main menu."""
+Reply 'menu' to restart."""
         except Exception as e:
-            logger.error(f"Error creating withdrawal request: {e}")
-            self.user_states.pop(user.id, None)
-            return f"""❌ Error submitting withdrawal request.
+            logger.error(f"Error creating withdrawal request: {e}", exc_info=True)
+            self._clear_state(user.id)
+            return f"""❌ Error submitting withdrawal request: {str(e)}
 
-Please try again or contact support.
-
-Reply 'menu' for main menu."""
+Reply 'menu' to restart."""
 
     async def _start_lucky_wheel_flow(self, user: User) -> str:
         """
@@ -1259,14 +1543,9 @@ Reply 'menu' for main menu."""
         Returns:
             Number selection prompt message
         """
-        # Store previous state if exists
-        previous_state = self.user_states.get(user.id, {}).get("state")
-        self.user_states[user.id] = {
-            "state": UserState.LUCKY_WHEEL_SELECT_NUMBER,
-            "game": "lucky_wheel",
-            "previous_state": previous_state,
-            "original_previous_state": previous_state,
-        }
+        # Set new state and push current to back stack
+        self._set_state(user.id, UserState.LUCKY_WHEEL_SELECT_NUMBER, preserve_current=True)
+        self.user_states[user.id]["game"] = "lucky_wheel"
 
         breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_SELECT_NUMBER)
         return f"""{breadcrumb}
@@ -1302,31 +1581,12 @@ Reply '0' or 'b' to go back."""
         if step == UserState.LUCKY_WHEEL_SELECT_NUMBER:
             # User is selecting a number
             try:
-                selected_number = int(message.strip())
+                selected_number = self._validate_lucky_wheel_number(message)
 
-                # Validate number range
-                if selected_number < 1 or selected_number > 12:
-                    breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_SELECT_NUMBER)
-                    return f"""{breadcrumb}
-
-❌ Invalid number! Please select a number between 1 and 12.
-
-🎡 LUCKY WHEEL (1-12)
-Select a number (1-12):
-
-Reply '0' or 'b' to go back."""
-
-                # Save to state and track previous state
-                original_prev = state.get("original_previous_state")
-                if not original_prev:
-                    original_prev = state.get("previous_state")
-                self.user_states[user.id] = {
-                    "state": UserState.LUCKY_WHEEL_ENTER_AMOUNT,
-                    "game": "lucky_wheel",
-                    "selected_number": selected_number,
-                    "previous_state": UserState.LUCKY_WHEEL_SELECT_NUMBER,
-                    "original_previous_state": original_prev,
-                }
+                # Save to state and move to next step
+                state["selected_number"] = selected_number
+                state["game"] = "lucky_wheel"
+                self._set_state(user.id, UserState.LUCKY_WHEEL_ENTER_AMOUNT, preserve_current=True)
 
                 breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_ENTER_AMOUNT)
                 return f"""{breadcrumb}
@@ -1338,11 +1598,11 @@ Example: R50 or 50
 
 Reply '0' or 'b' to go back."""
 
-            except ValueError:
+            except ValueError as e:
                 breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_SELECT_NUMBER)
                 return f"""{breadcrumb}
 
-❌ Invalid input! Please enter a number between 1 and 12.
+❌ {str(e)}
 
 🎡 LUCKY WHEEL (1-12)
 Select a number (1-12):
@@ -1351,19 +1611,105 @@ Reply '0' or 'b' to go back."""
 
         elif step == UserState.LUCKY_WHEEL_ENTER_AMOUNT:
             # User is entering bet amount
-            amount_match = re.search(r"r?(\d+(?:\.\d{1,2})?)", message.lower())
+            try:
+                stake_amount = self._validate_stake(message, Decimal("5.00"), Decimal("500.00"))
+                selected_number = state["selected_number"]
 
-            if not amount_match:
+                # Store stake and move to confirmation
+                state["stake_amount"] = stake_amount
+                state["game"] = "lucky_wheel"
+                self._set_state(user.id, UserState.LUCKY_WHEEL_CONFIRM, preserve_current=True)
+
+                # Calculate potential payout
+                potential_payout = stake_amount * Decimal("10.0")
+                
+                # Get current balance
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+
+                breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_CONFIRM)
+                return f"""{breadcrumb}
+
+✅ CONFIRM YOUR BET
+
+Game: Lucky Wheel
+Your pick: Number {selected_number}
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(potential_payout):.2f} (10x)
+
+Current balance: R{float(current_balance):.2f}
+Balance after bet: R{float(current_balance - stake_amount):.2f}
+
+Reply 'yes' or 'y' to confirm, 'no' or 'n' to cancel."""
+
+            except ValueError as e:
                 breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_ENTER_AMOUNT)
                 return f"""{breadcrumb}
 
-❌ Invalid amount. Example: R50 or 50
+❌ {str(e)}
 
-Enter bet amount (R5-R500):"""
+Enter bet amount (R5-R500):
+Example: R50 or 50
 
-            try:
-                stake_amount = Decimal(amount_match.group(1))
+Reply '0' or 'b' to go back."""
+
+        elif step == UserState.LUCKY_WHEEL_CONFIRM:
+            # User is confirming or cancelling bet
+            message_lower = message.lower().strip()
+            
+            if message_lower in ["no", "n", "cancel"]:
+                # User cancelled - go back to amount entry
+                state.pop("stake_amount", None)
+                state["state"] = UserState.LUCKY_WHEEL_ENTER_AMOUNT
+                breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_ENTER_AMOUNT)
+                return f"""{breadcrumb}
+
+✅ Your number: {state['selected_number']}
+
+Enter bet amount (R5-R500):
+Example: R50 or 50
+
+Reply '0' or 'b' to go back."""
+            
+            elif message_lower not in ["yes", "y", "confirm"]:
+                # Invalid confirmation response
+                breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_CONFIRM)
                 selected_number = state["selected_number"]
+                stake_amount = state["stake_amount"]
+                potential_payout = stake_amount * Decimal("10.0")
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+                return f"""{breadcrumb}
+
+❌ Invalid response. Please reply 'yes' to confirm or 'no' to cancel.
+
+✅ CONFIRM YOUR BET
+
+Game: Lucky Wheel
+Your pick: Number {selected_number}
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(potential_payout):.2f} (10x)
+
+Current balance: R{float(current_balance):.2f}
+Balance after bet: R{float(current_balance - stake_amount):.2f}
+
+Reply 'yes' or 'y' to confirm, 'no' or 'n' to cancel."""
+            
+            # User confirmed - place bet
+            try:
+                stake_amount = state["stake_amount"]
+                selected_number = state["selected_number"]
+
+                # Check balance before placing bet
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+                if current_balance < stake_amount:
+                    breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_CONFIRM)
+                    return f"""{breadcrumb}
+
+❌ Insufficient balance! You have R{float(current_balance):.2f}, but need R{float(stake_amount):.2f}.
+
+Reply 'no' to cancel or 'menu' to go to main menu."""
 
                 # Play the game
                 bet, result = await LuckyWheelGame.play(
@@ -1377,16 +1723,27 @@ Enter bet amount (R5-R500):"""
                 wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
                 new_balance = wallet.balance if wallet else Decimal("0.00")
 
+                # Send bet receipt
+                receipt_message = f"""✅ BET PLACED
+
+Bet ID: #{bet.id}
+Game: Lucky Wheel
+Your pick: Number {selected_number}
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(stake_amount * Decimal("10.0")):.2f} (10x)
+
+Round ID: #{bet.id}
+Balance: R{float(new_balance):.2f}
+
+Wait for result!"""
+
                 # Set state to show result with options
-                self.user_states[user.id] = {
-                    "state": UserState.VIEWING_LUCKY_WHEEL_RESULT,
-                    "game": "lucky_wheel",
-                    "previous_state": UserState.VIEWING_GAMES_MENU,
-                }
+                self._set_state(user.id, UserState.VIEWING_LUCKY_WHEEL_RESULT, preserve_current=False)
+                self.user_states[user.id]["game"] = "lucky_wheel"
 
                 breadcrumb = self._get_breadcrumb(UserState.VIEWING_LUCKY_WHEEL_RESULT)
                 if result["is_win"]:
-                    return f"""{breadcrumb}
+                    result_message = f"""{breadcrumb}
 
 🎡 LUCKY WHEEL RESULT
 
@@ -1405,7 +1762,7 @@ What would you like to do?
 
 Reply with number."""
                 else:
-                    return f"""{breadcrumb}
+                    result_message = f"""{breadcrumb}
 
 🎡 LUCKY WHEEL RESULT
 
@@ -1424,19 +1781,23 @@ What would you like to do?
 
 Reply with number."""
 
+                # Send receipt immediately, then result
+                await whatsapp_service.send_message(user.phone_number, receipt_message)
+                return result_message
+
             except InvalidBetDataError as e:
-                self.user_states.pop(user.id, None)
-                return f"❌ Invalid bet: {str(e)}"
+                self._clear_state(user.id)
+                return f"❌ Invalid bet: {str(e)}\n\nReply 'menu' to restart."
             except InvalidBetAmountError as e:
-                self.user_states.pop(user.id, None)
-                return f"❌ {str(e)}"
+                self._clear_state(user.id)
+                return f"❌ {str(e)}\n\nReply 'menu' to restart."
             except InsufficientBalanceError:
-                self.user_states.pop(user.id, None)
-                return "❌ Insufficient balance! Please deposit money first."
+                self._clear_state(user.id)
+                return "❌ Insufficient balance! Please deposit money first.\n\nReply 'menu' to restart."
             except Exception as e:
-                self.user_states.pop(user.id, None)
+                self._clear_state(user.id)
                 logger.error(f"Error in Lucky Wheel: {e}", exc_info=True)
-                return "❌ Something went wrong. Please try again."
+                return f"❌ Something went wrong: {str(e)}\n\nReply 'menu' to restart."""
 
         return "❌ Invalid state. Please start over."
 
@@ -1552,14 +1913,9 @@ Try again? Send: wheel [1-12] [amount]"""
         Returns:
             Color selection prompt message
         """
-        # Store previous state if exists
-        previous_state = self.user_states.get(user.id, {}).get("state")
-        self.user_states[user.id] = {
-            "state": UserState.COLOR_GAME_SELECT_COLOR,
-            "game": "color_game",
-            "previous_state": previous_state,
-            "original_previous_state": previous_state,
-        }
+        # Set new state and push current to back stack
+        self._set_state(user.id, UserState.COLOR_GAME_SELECT_COLOR, preserve_current=True)
+        self.user_states[user.id]["game"] = "color_game"
 
         breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_SELECT_COLOR)
         return f"""{breadcrumb}
@@ -1599,18 +1955,30 @@ Reply '0' to go back."""
 
         if step == UserState.COLOR_GAME_SELECT_COLOR:
             # User is selecting a color
-            color_map = {"r": "red", "g": "green", "b": "blue", "y": "yellow"}
-            color_input = message.strip().lower()
+            try:
+                selected_color = self._validate_color(message)
 
-            # Map shortcuts
-            selected_color = color_map.get(color_input, color_input)
+                # Save to state and move to next step
+                state["selected_color"] = selected_color
+                state["game"] = "color_game"
+                self._set_state(user.id, UserState.COLOR_GAME_ENTER_AMOUNT, preserve_current=True)
 
-            # Validate color
-            if selected_color not in ColorGame.VALID_COLORS:
+                color_emoji = ColorGame.COLOR_EMOJIS.get(selected_color, "")
+                breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_ENTER_AMOUNT)
+                return f"""{breadcrumb}
+
+✅ Your color: {color_emoji} {selected_color.title()}
+
+Enter bet amount (R5-R500):
+Example: R30 or 50
+
+Reply '0' or 'b' to go back."""
+
+            except ValueError as e:
                 breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_SELECT_COLOR)
                 return f"""{breadcrumb}
 
-❌ Invalid color! Please select: Red, Green, Blue, or Yellow.
+❌ {str(e)}
 
 🎨 COLOR GAME - Win 3x!
 
@@ -1622,21 +1990,63 @@ Pick a color:
 
 Reply '0' to go back."""
 
-            # Save to state and track previous state
-            original_prev = state.get("original_previous_state")
-            if not original_prev:
-                original_prev = state.get("previous_state")
-            self.user_states[user.id] = {
-                "state": UserState.COLOR_GAME_ENTER_AMOUNT,
-                "game": "color_game",
-                "selected_color": selected_color,
-                "previous_state": UserState.COLOR_GAME_SELECT_COLOR,
-                "original_previous_state": original_prev,
-            }
+        elif step == UserState.COLOR_GAME_ENTER_AMOUNT:
+            # User is entering bet amount
+            try:
+                stake_amount = self._validate_stake(message, Decimal("5.00"), Decimal("500.00"))
+                selected_color = state["selected_color"]
 
-            color_emoji = ColorGame.COLOR_EMOJIS.get(selected_color, "")
-            breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_ENTER_AMOUNT)
-            return f"""{breadcrumb}
+                # Store stake and move to confirmation
+                state["stake_amount"] = stake_amount
+                state["game"] = "color_game"
+                self._set_state(user.id, UserState.COLOR_GAME_CONFIRM, preserve_current=True)
+
+                # Calculate potential payout
+                potential_payout = stake_amount * Decimal("3.0")
+                
+                # Get current balance
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+
+                color_emoji = ColorGame.COLOR_EMOJIS.get(selected_color, "")
+                breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_CONFIRM)
+                return f"""{breadcrumb}
+
+✅ CONFIRM YOUR BET
+
+Game: Color Game
+Your pick: {color_emoji} {selected_color.title()}
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(potential_payout):.2f} (3x)
+
+Current balance: R{float(current_balance):.2f}
+Balance after bet: R{float(current_balance - stake_amount):.2f}
+
+Reply 'yes' or 'y' to confirm, 'no' or 'n' to cancel."""
+
+            except ValueError as e:
+                breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_ENTER_AMOUNT)
+                return f"""{breadcrumb}
+
+❌ {str(e)}
+
+Enter bet amount (R5-R500):
+Example: R30 or 50
+
+Reply '0' or 'b' to go back."""
+
+        elif step == UserState.COLOR_GAME_CONFIRM:
+            # User is confirming or cancelling bet
+            message_lower = message.lower().strip()
+            
+            if message_lower in ["no", "n", "cancel"]:
+                # User cancelled - go back to amount entry
+                state.pop("stake_amount", None)
+                state["state"] = UserState.COLOR_GAME_ENTER_AMOUNT
+                selected_color = state["selected_color"]
+                color_emoji = ColorGame.COLOR_EMOJIS.get(selected_color, "")
+                breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_ENTER_AMOUNT)
+                return f"""{breadcrumb}
 
 ✅ Your color: {color_emoji} {selected_color.title()}
 
@@ -1644,22 +2054,48 @@ Enter bet amount (R5-R500):
 Example: R30 or 50
 
 Reply '0' or 'b' to go back."""
-
-        elif step == UserState.COLOR_GAME_ENTER_AMOUNT:
-            # User is entering bet amount
-            amount_match = re.search(r"r?(\d+(?:\.\d{1,2})?)", message.lower())
-
-            if not amount_match:
-                breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_ENTER_AMOUNT)
+            
+            elif message_lower not in ["yes", "y", "confirm"]:
+                # Invalid confirmation response
+                breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_CONFIRM)
+                selected_color = state["selected_color"]
+                stake_amount = state["stake_amount"]
+                potential_payout = stake_amount * Decimal("3.0")
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+                color_emoji = ColorGame.COLOR_EMOJIS.get(selected_color, "")
                 return f"""{breadcrumb}
 
-❌ Invalid amount. Example: R30 or 50
+❌ Invalid response. Please reply 'yes' to confirm or 'no' to cancel.
 
-Enter bet amount (R5-R500):"""
+✅ CONFIRM YOUR BET
 
+Game: Color Game
+Your pick: {color_emoji} {selected_color.title()}
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(potential_payout):.2f} (3x)
+
+Current balance: R{float(current_balance):.2f}
+Balance after bet: R{float(current_balance - stake_amount):.2f}
+
+Reply 'yes' or 'y' to confirm, 'no' or 'n' to cancel."""
+            
+            # User confirmed - place bet
             try:
-                stake_amount = Decimal(amount_match.group(1))
+                stake_amount = state["stake_amount"]
                 selected_color = state["selected_color"]
+
+                # Check balance before placing bet
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+                if current_balance < stake_amount:
+                    breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_CONFIRM)
+                    color_emoji = ColorGame.COLOR_EMOJIS.get(selected_color, "")
+                    return f"""{breadcrumb}
+
+❌ Insufficient balance! You have R{float(current_balance):.2f}, but need R{float(stake_amount):.2f}.
+
+Reply 'no' to cancel or 'menu' to go to main menu."""
 
                 # Play the game
                 bet, result = await ColorGame.play(
@@ -1677,16 +2113,27 @@ Enter bet amount (R5-R500):"""
                 selected_emoji = ColorGame.COLOR_EMOJIS.get(result["selected_color"], "")
                 drawn_emoji = ColorGame.COLOR_EMOJIS.get(result["drawn_color"], "")
 
+                # Send bet receipt
+                receipt_message = f"""✅ BET PLACED
+
+Bet ID: #{bet.id}
+Game: Color Game
+Your pick: {selected_emoji} {selected_color.title()}
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(stake_amount * Decimal("3.0")):.2f} (3x)
+
+Round ID: #{bet.id}
+Balance: R{float(new_balance):.2f}
+
+Wait for result!"""
+
                 # Set state to show result with options
-                self.user_states[user.id] = {
-                    "state": UserState.VIEWING_COLOR_GAME_RESULT,
-                    "game": "color_game",
-                    "previous_state": UserState.VIEWING_GAMES_MENU,
-                }
+                self._set_state(user.id, UserState.VIEWING_COLOR_GAME_RESULT, preserve_current=False)
+                self.user_states[user.id]["game"] = "color_game"
 
                 breadcrumb = self._get_breadcrumb(UserState.VIEWING_COLOR_GAME_RESULT)
                 if result["is_win"]:
-                    return f"""{breadcrumb}
+                    result_message = f"""{breadcrumb}
 
 🎨 COLOR GAME RESULT
 
@@ -1705,7 +2152,7 @@ What would you like to do?
 
 Reply with number."""
                 else:
-                    return f"""{breadcrumb}
+                    result_message = f"""{breadcrumb}
 
 🎨 COLOR GAME RESULT
 
@@ -1724,19 +2171,33 @@ What would you like to do?
 
 Reply with number."""
 
+                # Send receipt immediately, then result
+                await whatsapp_service.send_message(user.phone_number, receipt_message)
+                return result_message
+
+            except ValueError as e:
+                breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_ENTER_AMOUNT)
+                return f"""{breadcrumb}
+
+❌ {str(e)}
+
+Enter bet amount (R5-R500):
+Example: R30 or 50
+
+Reply '0' or 'b' to go back."""
             except InvalidBetDataError as e:
-                self.user_states.pop(user.id, None)
-                return f"❌ Invalid bet: {str(e)}"
+                self._clear_state(user.id)
+                return f"❌ Invalid bet: {str(e)}\n\nReply 'menu' to restart."
             except InvalidBetAmountError as e:
-                self.user_states.pop(user.id, None)
-                return f"❌ {str(e)}"
+                self._clear_state(user.id)
+                return f"❌ {str(e)}\n\nReply 'menu' to restart."
             except InsufficientBalanceError:
-                self.user_states.pop(user.id, None)
-                return "❌ Insufficient balance! Please deposit money first."
+                self._clear_state(user.id)
+                return "❌ Insufficient balance! Please deposit money first.\n\nReply 'menu' to restart."
             except Exception as e:
-                self.user_states.pop(user.id, None)
+                self._clear_state(user.id)
                 logger.error(f"Error in Color Game: {e}", exc_info=True)
-                return "❌ Something went wrong. Please try again."
+                return f"❌ Something went wrong: {str(e)}\n\nReply 'menu' to restart."
 
         return "❌ Invalid state. Please start over."
 
@@ -1867,14 +2328,9 @@ Try again? Send: color [color] [amount]"""
         Returns:
             Instructions message
         """
-        # Store previous state if exists
-        previous_state = self.user_states.get(user.id, {}).get("state")
-        self.user_states[user.id] = {
-            "state": UserState.PICK3_SELECT_NUMBERS,
-            "game": "pick3",
-            "previous_state": previous_state,
-            "original_previous_state": previous_state,  # Store original for back navigation
-        }
+        # Set new state and push current to back stack
+        self._set_state(user.id, UserState.PICK3_SELECT_NUMBERS, preserve_current=True)
+        self.user_states[user.id]["game"] = "pick3"
 
         breadcrumb = self._get_breadcrumb(UserState.PICK3_SELECT_NUMBERS)
         return f"""{breadcrumb}
@@ -1912,39 +2368,19 @@ Reply '0' or 'b' to go back."""
 
         if step == UserState.PICK3_SELECT_NUMBERS:
             # User is selecting 3 numbers
-            # Parse: "5 12 28" or "7, 14, 23"
-            numbers = re.findall(r"\d+", message)
-
-            if len(numbers) != 3:
-                breadcrumb = self._get_breadcrumb(UserState.PICK3_SELECT_NUMBERS)
-                return f"""{breadcrumb}
-
-❌ Please select exactly 3 numbers!
-
-🎯 PICK 3 NUMBERS (1-36)
-Example: 7 14 23
-
-Reply '0' or 'b' to go back."""
-
             try:
-                selected_numbers = [int(n) for n in numbers]
+                # Validate exactly 3 numbers (1-36), no duplicates
+                selected_numbers = self._validate_pick3_numbers(message)
 
-                # Validate
+                # Additional validation using game's validate_bet_data
                 selected_numbers = Pick3Game.validate_bet_data(
                     {"selected_numbers": selected_numbers}
                 )
 
-                # Save to state and track previous state
-                original_prev = state.get("original_previous_state")
-                if not original_prev:
-                    original_prev = state.get("previous_state")
-                self.user_states[user.id] = {
-                    "state": UserState.PICK3_ENTER_AMOUNT,
-                    "game": "pick3",
-                    "selected_numbers": selected_numbers,
-                    "previous_state": UserState.PICK3_SELECT_NUMBERS,
-                    "original_previous_state": original_prev,  # Preserve original
-                }
+                # Save to state and move to next step
+                state["selected_numbers"] = selected_numbers
+                state["game"] = "pick3"
+                self._set_state(user.id, UserState.PICK3_ENTER_AMOUNT, preserve_current=True)
 
                 breadcrumb = self._get_breadcrumb(UserState.PICK3_ENTER_AMOUNT)
                 return f"""{breadcrumb}
@@ -1956,24 +2392,129 @@ Example: R10 or 50
 
 Reply '0' or 'b' to go back."""
 
+            except ValueError as e:
+                breadcrumb = self._get_breadcrumb(UserState.PICK3_SELECT_NUMBERS)
+                return f"""{breadcrumb}
+
+❌ {str(e)}
+
+🎯 PICK 3 NUMBERS (1-36)
+Example: 7 14 23
+
+Reply '0' or 'b' to go back."""
             except Exception as e:
-                return f"❌ {str(e)}\n\nPlease try again."
+                breadcrumb = self._get_breadcrumb(UserState.PICK3_SELECT_NUMBERS)
+                return f"""{breadcrumb}
+
+❌ {str(e)}
+
+🎯 PICK 3 NUMBERS (1-36)
+Example: 7 14 23
+
+Reply '0' or 'b' to go back."""
 
         elif step == UserState.PICK3_ENTER_AMOUNT:
             # User is entering bet amount
-            amount_match = re.search(r"r?(\d+(?:\.\d{1,2})?)", message.lower())
+            try:
+                stake_amount = self._validate_stake(message, Decimal("2.00"), Decimal("100.00"))
+                selected_numbers = state["selected_numbers"]
 
-            if not amount_match:
+                # Store stake and move to confirmation
+                state["stake_amount"] = stake_amount
+                state["game"] = "pick3"
+                self._set_state(user.id, UserState.PICK3_CONFIRM, preserve_current=True)
+
+                # Calculate potential payout
+                potential_payout = stake_amount * Decimal("800.0")
+                
+                # Get current balance
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+
+                breadcrumb = self._get_breadcrumb(UserState.PICK3_CONFIRM)
+                return f"""{breadcrumb}
+
+✅ CONFIRM YOUR BET
+
+Game: Pick 3 Numbers
+Your pick: {', '.join(map(str, selected_numbers))}
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(potential_payout):.2f} (800x)
+
+Current balance: R{float(current_balance):.2f}
+Balance after bet: R{float(current_balance - stake_amount):.2f}
+
+Reply 'yes' or 'y' to confirm, 'no' or 'n' to cancel."""
+
+            except ValueError as e:
                 breadcrumb = self._get_breadcrumb(UserState.PICK3_ENTER_AMOUNT)
                 return f"""{breadcrumb}
 
-❌ Invalid amount. Example: R10 or 50
+❌ {str(e)}
 
-Enter bet amount (R2-R100):"""
+Enter bet amount (R2-R100):
+Example: R10 or 50
 
-            try:
-                stake_amount = Decimal(amount_match.group(1))
+Reply '0' or 'b' to go back."""
+
+        elif step == UserState.PICK3_CONFIRM:
+            # User is confirming or cancelling bet
+            message_lower = message.lower().strip()
+            
+            if message_lower in ["no", "n", "cancel"]:
+                # User cancelled - go back to amount entry
+                state.pop("stake_amount", None)
+                state["state"] = UserState.PICK3_ENTER_AMOUNT
+                breadcrumb = self._get_breadcrumb(UserState.PICK3_ENTER_AMOUNT)
+                selected_numbers = state.get("selected_numbers", [])
+                return f"""{breadcrumb}
+
+✅ Your numbers: {', '.join(map(str, selected_numbers))}
+
+Enter bet amount (R2-R100):
+Example: R10 or 50
+
+Reply '0' or 'b' to go back."""
+            
+            elif message_lower not in ["yes", "y", "confirm"]:
+                # Invalid confirmation response
+                breadcrumb = self._get_breadcrumb(UserState.PICK3_CONFIRM)
                 selected_numbers = state["selected_numbers"]
+                stake_amount = state["stake_amount"]
+                potential_payout = stake_amount * Decimal("800.0")
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+                return f"""{breadcrumb}
+
+❌ Invalid response. Please reply 'yes' to confirm or 'no' to cancel.
+
+✅ CONFIRM YOUR BET
+
+Game: Pick 3 Numbers
+Your pick: {', '.join(map(str, selected_numbers))}
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(potential_payout):.2f} (800x)
+
+Current balance: R{float(current_balance):.2f}
+Balance after bet: R{float(current_balance - stake_amount):.2f}
+
+Reply 'yes' or 'y' to confirm, 'no' or 'n' to cancel."""
+            
+            # User confirmed - place bet
+            try:
+                stake_amount = state["stake_amount"]
+                selected_numbers = state["selected_numbers"]
+
+                # Check balance before placing bet
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+                if current_balance < stake_amount:
+                    breadcrumb = self._get_breadcrumb(UserState.PICK3_CONFIRM)
+                    return f"""{breadcrumb}
+
+❌ Insufficient balance! You have R{float(current_balance):.2f}, but need R{float(stake_amount):.2f}.
+
+Reply 'no' to cancel or 'menu' to go to main menu."""
 
                 # Play the game
                 bet, result = await Pick3Game.play(
@@ -1988,17 +2529,28 @@ Enter bet amount (R2-R100):"""
                 wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
                 new_balance = wallet.balance if wallet else Decimal("0.00")
 
+                # Send bet receipt
+                receipt_message = f"""✅ BET PLACED
+
+Bet ID: #{bet.id}
+Game: Pick 3 Numbers
+Your pick: {', '.join(map(str, selected_numbers))}
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(stake_amount * Decimal("800.0")):.2f} (800x)
+
+Round ID: #{bet.id}
+Balance: R{float(new_balance):.2f}
+
+Wait for result!"""
+
                 # Set state to show result with options
-                self.user_states[user.id] = {
-                    "state": UserState.VIEWING_PICK3_RESULT,
-                    "game": "pick3",
-                    "previous_state": UserState.VIEWING_GAMES_MENU,
-                }
+                self._set_state(user.id, UserState.VIEWING_PICK3_RESULT, preserve_current=False)
+                self.user_states[user.id]["game"] = "pick3"
 
                 # Format result message
                 breadcrumb = self._get_breadcrumb(UserState.VIEWING_PICK3_RESULT)
                 if result["match_count"] == 3:
-                    return f"""{breadcrumb}
+                    result_message = f"""{breadcrumb}
 
 🎯 PICK 3 RESULT
 
@@ -2018,7 +2570,7 @@ What would you like to do?
 
 Reply with number."""
                 elif result["match_count"] == 2:
-                    return f"""{breadcrumb}
+                    result_message = f"""{breadcrumb}
 
 🎯 PICK 3 RESULT
 
@@ -2038,7 +2590,7 @@ What would you like to do?
 
 Reply with number."""
                 elif result["match_count"] == 1:
-                    return f"""{breadcrumb}
+                    result_message = f"""{breadcrumb}
 
 🎯 PICK 3 RESULT
 
@@ -2058,7 +2610,7 @@ What would you like to do?
 
 Reply with number."""
                 else:
-                    return f"""{breadcrumb}
+                    result_message = f"""{breadcrumb}
 
 🎯 PICK 3 RESULT
 
@@ -2076,19 +2628,33 @@ What would you like to do?
 
 Reply with number."""
 
+                # Send receipt immediately, then result
+                await whatsapp_service.send_message(user.phone_number, receipt_message)
+                return result_message
+
+            except ValueError as e:
+                breadcrumb = self._get_breadcrumb(UserState.PICK3_ENTER_AMOUNT)
+                return f"""{breadcrumb}
+
+❌ {str(e)}
+
+Enter bet amount (R2-R100):
+Example: R10 or 50
+
+Reply '0' or 'b' to go back."""
             except InvalidBetDataError as e:
-                self.user_states.pop(user.id, None)
-                return f"❌ Invalid bet: {str(e)}"
+                self._clear_state(user.id)
+                return f"❌ Invalid bet: {str(e)}\n\nReply 'menu' to restart."
             except InvalidBetAmountError as e:
-                self.user_states.pop(user.id, None)
-                return f"❌ {str(e)}"
+                self._clear_state(user.id)
+                return f"❌ {str(e)}\n\nReply 'menu' to restart."
             except InsufficientBalanceError:
-                self.user_states.pop(user.id, None)
-                return "❌ Insufficient balance! Please deposit money first."
+                self._clear_state(user.id)
+                return "❌ Insufficient balance! Please deposit money first.\n\nReply 'menu' to restart."
             except Exception as e:
-                self.user_states.pop(user.id, None)
+                self._clear_state(user.id)
                 logger.error(f"Error in Pick 3: {e}", exc_info=True)
-                return f"❌ Error: {str(e)}"
+                return f"❌ Error: {str(e)}\n\nReply 'menu' to restart."
 
         return "❌ Invalid state. Please start over."
 
@@ -2107,15 +2673,10 @@ Reply with number."""
         matches = FootballYesNoGame.get_active_matches(db, limit=10)
 
         if not matches:
-            # Store previous state if exists so user can navigate back
-            previous_state = self.user_states.get(user.id, {}).get("state")
-            self.user_states[user.id] = {
-                "state": UserState.FOOTBALL_SELECT_MATCH,
-                "game": "football",
-                "previous_state": previous_state,
-                "original_previous_state": previous_state,
-                "matches": [],  # Empty matches list
-            }
+            # Set new state and push current to back stack
+            self._set_state(user.id, UserState.FOOTBALL_SELECT_MATCH, preserve_current=True)
+            self.user_states[user.id]["game"] = "football"
+            self.user_states[user.id]["matches"] = []  # Empty matches list
             breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_SELECT_MATCH)
             return f"""{breadcrumb}
 
@@ -2143,26 +2704,20 @@ Active Matches:
 
         matches_text += "Reply with match number:"
 
-        # Store previous state if exists
-        previous_state = self.user_states.get(user.id, {}).get("state")
-        # Set state
-        self.user_states[user.id] = {
-            "state": UserState.FOOTBALL_SELECT_MATCH,
-            "game": "football",
-            "previous_state": previous_state,
-            "original_previous_state": previous_state,  # Store original for back navigation
-            "matches": [
-                {
-                    "id": m.id,
-                    "home_team": m.home_team,
-                    "away_team": m.away_team,
-                    "event_description": m.event_description,
-                    "yes_odds": float(m.yes_odds),
-                    "no_odds": float(m.no_odds),
-                }
-                for m in matches
-            ],
-        }
+        # Set new state and push current to back stack
+        self._set_state(user.id, UserState.FOOTBALL_SELECT_MATCH, preserve_current=True)
+        self.user_states[user.id]["game"] = "football"
+        self.user_states[user.id]["matches"] = [
+            {
+                "id": m.id,
+                "home_team": m.home_team,
+                "away_team": m.away_team,
+                "event_description": m.event_description,
+                "yes_odds": float(m.yes_odds),
+                "no_odds": float(m.no_odds),
+            }
+            for m in matches
+        ]
 
         return matches_text + "\n\nReply '0' or 'b' to go back."
 
@@ -2220,18 +2775,11 @@ Reply '0' or 'b' to go back."""
 
                 selected_match = matches[match_num - 1]
 
-                # Update state and track previous state
-                original_prev = state.get("original_previous_state")
-                if not original_prev:
-                    original_prev = state.get("previous_state")
-                self.user_states[user.id] = {
-                    "state": UserState.FOOTBALL_SELECT_CHOICE,
-                    "game": "football",
-                    "match_id": selected_match["id"],
-                    "match": selected_match,
-                    "previous_state": UserState.FOOTBALL_SELECT_MATCH,
-                    "original_previous_state": original_prev,  # Preserve original
-                }
+                # Update state and move to next step
+                state["match_id"] = selected_match["id"]
+                state["match"] = selected_match
+                state["game"] = "football"
+                self._set_state(user.id, UserState.FOOTBALL_SELECT_CHOICE, preserve_current=True)
 
                 breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_SELECT_CHOICE)
                 return f"""{breadcrumb}
@@ -2271,20 +2819,11 @@ Reply '0' or 'b' to go back."""
             match_info = state["match"]
             odds = match_info["yes_odds"] if choice == "yes" else match_info["no_odds"]
 
-            # Update state and track previous state
-            original_prev = state.get("original_previous_state")
-            if not original_prev:
-                original_prev = state.get("previous_state")
-            self.user_states[user.id] = {
-                "state": UserState.FOOTBALL_ENTER_AMOUNT,
-                "game": "football",
-                "match_id": state["match_id"],
-                "choice": choice,
-                "odds": odds,
-                "match": match_info,
-                "previous_state": UserState.FOOTBALL_SELECT_CHOICE,
-                "original_previous_state": original_prev,  # Preserve original
-            }
+            # Update state and move to next step
+            state["choice"] = choice
+            state["odds"] = odds
+            state["game"] = "football"
+            self._set_state(user.id, UserState.FOOTBALL_ENTER_AMOUNT, preserve_current=True)
 
             breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_ENTER_AMOUNT)
             return f"""{breadcrumb}
@@ -2298,20 +2837,118 @@ Reply '0' or 'b' to go back."""
 
         elif step == UserState.FOOTBALL_ENTER_AMOUNT:
             # User is entering bet amount
-            amount_match = re.search(r"r?(\d+(?:\.\d{1,2})?)", message.lower())
+            try:
+                stake_amount = self._validate_stake(message, Decimal("10.00"), Decimal("1000.00"))
+                match_id = state["match_id"]
+                choice = state["choice"]
+                match_info = state["match"]
+                odds = state["odds"]
 
-            if not amount_match:
+                # Store stake and move to confirmation
+                state["stake_amount"] = stake_amount
+                state["game"] = "football"
+                self._set_state(user.id, UserState.FOOTBALL_CONFIRM, preserve_current=True)
+
+                # Calculate potential payout
+                potential_payout = stake_amount * Decimal(str(odds))
+                
+                # Get current balance
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+
+                breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_CONFIRM)
+                return f"""{breadcrumb}
+
+✅ CONFIRM YOUR BET
+
+Game: Football Yes/No
+Match: {match_info['home_team']} vs {match_info['away_team']}
+Question: {match_info['event_description']}
+Your bet: {choice.upper()} ({odds}x)
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(potential_payout):.2f}
+
+Current balance: R{float(current_balance):.2f}
+Balance after bet: R{float(current_balance - stake_amount):.2f}
+
+Reply 'yes' or 'y' to confirm, 'no' or 'n' to cancel."""
+
+            except ValueError as e:
                 breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_ENTER_AMOUNT)
                 return f"""{breadcrumb}
 
-❌ Invalid amount. Example: R100 or 500
+❌ {str(e)}
 
-Enter bet amount (R10-R1000):"""
+Enter bet amount (R10-R1000):
+Example: R100 or 500
 
+Reply '0' or 'b' to go back."""
+
+        elif step == UserState.FOOTBALL_CONFIRM:
+            # User is confirming or cancelling bet
+            message_lower = message.lower().strip()
+            
+            if message_lower in ["no", "n", "cancel"]:
+                # User cancelled - go back to amount entry
+                state.pop("stake_amount", None)
+                state["state"] = UserState.FOOTBALL_ENTER_AMOUNT
+                breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_ENTER_AMOUNT)
+                choice = state.get("choice")
+                odds = state.get("odds")
+                return f"""{breadcrumb}
+
+You chose: {choice.upper()} ({odds}x)
+
+Enter bet amount (R10-R1000):
+Example: R100 or 500
+
+Reply '0' or 'b' to go back."""
+            
+            elif message_lower not in ["yes", "y", "confirm"]:
+                # Invalid confirmation response
+                breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_CONFIRM)
+                match_info = state["match"]
+                choice = state["choice"]
+                odds = state["odds"]
+                stake_amount = state["stake_amount"]
+                potential_payout = stake_amount * Decimal(str(odds))
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+                return f"""{breadcrumb}
+
+❌ Invalid response. Please reply 'yes' to confirm or 'no' to cancel.
+
+✅ CONFIRM YOUR BET
+
+Game: Football Yes/No
+Match: {match_info['home_team']} vs {match_info['away_team']}
+Question: {match_info['event_description']}
+Your bet: {choice.upper()} ({odds}x)
+Stake: R{float(stake_amount):.2f}
+Potential payout: R{float(potential_payout):.2f}
+
+Current balance: R{float(current_balance):.2f}
+Balance after bet: R{float(current_balance - stake_amount):.2f}
+
+Reply 'yes' or 'y' to confirm, 'no' or 'n' to cancel."""
+            
+            # User confirmed - place bet
             try:
-                stake_amount = Decimal(amount_match.group(1))
+                stake_amount = state["stake_amount"]
                 match_id = state["match_id"]
                 choice = state["choice"]
+                match_info = state["match"]
+
+                # Check balance before placing bet
+                wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                current_balance = wallet.balance if wallet else Decimal("0.00")
+                if current_balance < stake_amount:
+                    breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_CONFIRM)
+                    return f"""{breadcrumb}
+
+❌ Insufficient balance! You have R{float(current_balance):.2f}, but need R{float(stake_amount):.2f}.
+
+Reply 'no' to cancel or 'menu' to go to main menu."""
 
                 # Place bet (status: pending)
                 bet, result = await FootballYesNoGame.place_bet(
@@ -2321,13 +2958,31 @@ Enter bet amount (R10-R1000):"""
                     db=db,
                 )
 
-                # Clear state
-                self.user_states.pop(user.id, None)
-
                 # Get new balance
                 wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
                 new_balance = wallet.balance if wallet else Decimal("0.00")
 
+                # Send bet receipt
+                receipt_message = f"""✅ BET PLACED
+
+Bet ID: #{bet.id}
+Game: Football Yes/No
+Match: {result['home_team']} vs {result['away_team']}
+Question: {result['event_description']}
+Your bet: {result['choice'].upper()} - R{result['stake']:.2f}
+Potential payout: R{result['potential_payout']:.2f}
+
+Round ID: #{bet.id}
+Balance: R{float(new_balance):.2f}
+
+Wait for match to end!"""
+
+                # Clear state
+                self._clear_state(user.id)
+
+                # Send receipt immediately
+                await whatsapp_service.send_message(user.phone_number, receipt_message)
+                
                 breadcrumb = self._get_breadcrumb()
                 return f"""{breadcrumb}
 
@@ -2341,19 +2996,29 @@ Potential win: R{result['potential_payout']:.2f}
 Wait for match to end!
 💰 Balance: R{new_balance:.2f}"""
 
+            except ValueError as e:
+                breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_ENTER_AMOUNT)
+                return f"""{breadcrumb}
+
+❌ {str(e)}
+
+Enter bet amount (R10-R1000):
+Example: R100 or 500
+
+Reply '0' or 'b' to go back."""
             except InvalidBetDataError as e:
-                self.user_states.pop(user.id, None)
-                return f"❌ Invalid bet: {str(e)}"
+                self._clear_state(user.id)
+                return f"❌ Invalid bet: {str(e)}\n\nReply 'menu' to restart."
             except InvalidBetAmountError as e:
-                self.user_states.pop(user.id, None)
-                return f"❌ {str(e)}"
+                self._clear_state(user.id)
+                return f"❌ {str(e)}\n\nReply 'menu' to restart."
             except InsufficientBalanceError:
-                self.user_states.pop(user.id, None)
-                return "❌ Insufficient balance! Please deposit money first."
+                self._clear_state(user.id)
+                return "❌ Insufficient balance! Please deposit money first.\n\nReply 'menu' to restart."
             except Exception as e:
-                self.user_states.pop(user.id, None)
+                self._clear_state(user.id)
                 logger.error(f"Error in Football Yes/No: {e}", exc_info=True)
-                return f"❌ Error: {str(e)}"
+                return f"❌ Error: {str(e)}\n\nReply 'menu' to restart."
 
         return "❌ Invalid state. Please start over."
 
@@ -2364,7 +3029,7 @@ Wait for match to end!
         db: Session,
     ) -> str:
         """
-        Handle back navigation - go back one step in the flow.
+        Handle back navigation - go back one step in the flow using back stack.
 
         Args:
             user: User instance
@@ -2375,22 +3040,26 @@ Wait for match to end!
             Response message
         """
         current_state = state.get("state")
-        previous_state = state.get("previous_state")
+        back_stack = state.get("back_stack", [])
 
-        # If no previous state, go to main menu
+        # If back stack is empty, go to main menu
+        if not back_stack:
+            self._clear_state(user.id)
+            return self._show_main_menu()
+
+        # Pop the previous state from back stack
+        previous_state = self._pop_from_back_stack(user.id)
+        
         if not previous_state:
-            self.user_states.pop(user.id, None)
+            self._clear_state(user.id)
             return self._show_main_menu()
 
         # Handle going back based on current state
-        # When going back, we restore the previous state and keep its original previous_state
+        # Restore the previous state and handle state-specific cleanup
         if current_state == UserState.AWAITING_DEPOSIT_METHOD:
-            # Go back to deposit amount - restore original previous_state
-            original_prev = state.get("original_previous_state", previous_state)
-            state["state"] = UserState.AWAITING_DEPOSIT_AMOUNT
-            state["previous_state"] = original_prev
+            # Go back to deposit amount
             state.pop("amount", None)
-            state.pop("original_previous_state", None)
+            state["state"] = previous_state
             return """💰 DEPOSIT MONEY
 
 Minimum deposit: R10
@@ -2402,13 +3071,10 @@ Example: 50 (for R50)
 Reply '0' or 'b' to go back."""
 
         elif current_state == UserState.AWAITING_DEPOSIT_PROOF:
-            # Go back to deposit method - previous_state should be AWAITING_DEPOSIT_AMOUNT
-            original_prev = state.get("original_previous_state", previous_state)
-            state["state"] = UserState.AWAITING_DEPOSIT_METHOD
-            state["previous_state"] = UserState.AWAITING_DEPOSIT_AMOUNT
-            state["original_previous_state"] = original_prev
+            # Go back to deposit method
             state.pop("payment_method", None)
             state.pop("method_name", None)
+            state["state"] = previous_state
             amount = state.get("amount", Decimal("0.00"))
             return f"""💳 PAYMENT METHOD
 
@@ -2424,12 +3090,9 @@ Choose your payment method:
 Reply with the number (1-4) or '0'/'b' to go back."""
 
         elif current_state == UserState.AWAITING_WITHDRAWAL_METHOD:
-            # Go back to withdrawal amount - restore original previous_state
-            original_prev = state.get("original_previous_state", previous_state)
-            state["state"] = UserState.AWAITING_WITHDRAWAL_AMOUNT
-            state["previous_state"] = original_prev
+            # Go back to withdrawal amount
             state.pop("amount", None)
-            state.pop("original_previous_state", None)
+            state["state"] = previous_state
             try:
                 balance = wallet_service.get_balance(user.id, db)
                 return f"""💸 WITHDRAW MONEY
@@ -2447,13 +3110,10 @@ Reply '0' or 'b' to go back."""
                 return "❌ Error checking balance. Please try again later."
 
         elif current_state == UserState.AWAITING_WITHDRAWAL_DETAILS:
-            # Go back to withdrawal method - previous_state should be AWAITING_WITHDRAWAL_AMOUNT
-            original_prev = state.get("original_previous_state", previous_state)
-            state["state"] = UserState.AWAITING_WITHDRAWAL_METHOD
-            state["previous_state"] = UserState.AWAITING_WITHDRAWAL_AMOUNT
-            state["original_previous_state"] = original_prev
+            # Go back to withdrawal method
             state.pop("withdrawal_method", None)
             state.pop("method_name", None)
+            state["state"] = previous_state
             amount = state.get("amount", Decimal("0.00"))
             return f"""💳 WITHDRAWAL METHOD
 
@@ -2468,12 +3128,9 @@ Choose withdrawal method:
 Reply with the number (1-3) or '0'/'b' to go back."""
 
         elif current_state == UserState.PICK3_ENTER_AMOUNT:
-            # Go back to pick3 number selection - restore original previous_state
-            original_prev = state.get("original_previous_state", previous_state)
-            state["state"] = UserState.PICK3_SELECT_NUMBERS
-            state["previous_state"] = original_prev
+            # Go back to pick3 number selection
             state.pop("selected_numbers", None)
-            state.pop("original_previous_state", None)
+            state["state"] = previous_state
             breadcrumb = self._get_breadcrumb(UserState.PICK3_SELECT_NUMBERS)
             return f"""{breadcrumb}
 
@@ -2487,39 +3144,34 @@ Send your 3 numbers:
 
 Reply '0' or 'b' to go back."""
 
+        elif current_state == UserState.PICK3_CONFIRM:
+            # Go back to amount entry
+            state.pop("stake_amount", None)
+            state["state"] = previous_state
+            breadcrumb = self._get_breadcrumb(UserState.PICK3_ENTER_AMOUNT)
+            selected_numbers = state.get("selected_numbers", [])
+            return f"""{breadcrumb}
+
+✅ Your numbers: {', '.join(map(str, selected_numbers))}
+
+Enter bet amount (R2-R100):
+Example: R10 or 50
+
+Reply '0' or 'b' to go back."""
+
         elif current_state == UserState.LUCKY_WHEEL_SELECT_NUMBER:
-            # Go back from number selection - restore original previous_state
-            original_prev = state.get("original_previous_state", previous_state)
-            if not original_prev:
-                # No previous state, go to main menu
-                self.user_states.pop(user.id, None)
-                return self._show_main_menu()
-            
-            # Go back to previous state (usually games menu or main menu)
-            self.user_states.pop(user.id, None)
-            if original_prev == UserState.VIEWING_GAMES_MENU:
-                breadcrumb = self._get_breadcrumb(UserState.VIEWING_GAMES_MENU)
-                return f"""{breadcrumb}
-
-🎮 CHOOSE YOUR GAME:
-
-1️⃣ Lucky Wheel (1-12) - Win 10x
-2️⃣ Color Game - Win 3x
-3️⃣ Pick 3 Numbers - Win 800x
-4️⃣ Football Yes/No - Various odds
-0️⃣ Back to Menu
-
-Reply with game number."""
+            # Go back from number selection
+            if previous_state == UserState.VIEWING_GAMES_MENU:
+                state["state"] = previous_state
+                return self._show_games(user)
             else:
+                self._clear_state(user.id)
                 return self._show_main_menu()
 
         elif current_state == UserState.LUCKY_WHEEL_ENTER_AMOUNT:
-            # Go back to number selection - restore original previous_state
-            original_prev = state.get("original_previous_state", previous_state)
-            state["state"] = UserState.LUCKY_WHEEL_SELECT_NUMBER
-            state["previous_state"] = original_prev
+            # Go back to number selection
             state.pop("selected_number", None)
-            state.pop("original_previous_state", None)
+            state["state"] = previous_state
             breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_SELECT_NUMBER)
             return f"""{breadcrumb}
 
@@ -2530,39 +3182,34 @@ Select a number (1-12):
 
 Reply '0' or 'b' to go back."""
 
+        elif current_state == UserState.LUCKY_WHEEL_CONFIRM:
+            # Go back to amount entry
+            state.pop("stake_amount", None)
+            state["state"] = previous_state
+            breadcrumb = self._get_breadcrumb(UserState.LUCKY_WHEEL_ENTER_AMOUNT)
+            selected_number = state.get("selected_number")
+            return f"""{breadcrumb}
+
+✅ Your number: {selected_number}
+
+Enter bet amount (R5-R500):
+Example: R50 or 50
+
+Reply '0' or 'b' to go back."""
+
         elif current_state == UserState.COLOR_GAME_SELECT_COLOR:
-            # Go back from color selection - restore original previous_state
-            original_prev = state.get("original_previous_state", previous_state)
-            if not original_prev:
-                # No previous state, go to main menu
-                self.user_states.pop(user.id, None)
-                return self._show_main_menu()
-            
-            # Go back to previous state (usually games menu or main menu)
-            self.user_states.pop(user.id, None)
-            if original_prev == UserState.VIEWING_GAMES_MENU:
-                breadcrumb = self._get_breadcrumb(UserState.VIEWING_GAMES_MENU)
-                return f"""{breadcrumb}
-
-🎮 CHOOSE YOUR GAME:
-
-1️⃣ Lucky Wheel (1-12) - Win 10x
-2️⃣ Color Game - Win 3x
-3️⃣ Pick 3 Numbers - Win 800x
-4️⃣ Football Yes/No - Various odds
-0️⃣ Back to Menu
-
-Reply with game number."""
+            # Go back from color selection
+            if previous_state == UserState.VIEWING_GAMES_MENU:
+                state["state"] = previous_state
+                return self._show_games(user)
             else:
+                self._clear_state(user.id)
                 return self._show_main_menu()
 
         elif current_state == UserState.COLOR_GAME_ENTER_AMOUNT:
-            # Go back to color selection - restore original previous_state
-            original_prev = state.get("original_previous_state", previous_state)
-            state["state"] = UserState.COLOR_GAME_SELECT_COLOR
-            state["previous_state"] = original_prev
+            # Go back to color selection
             state.pop("selected_color", None)
-            state.pop("original_previous_state", None)
+            state["state"] = previous_state
             breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_SELECT_COLOR)
             return f"""{breadcrumb}
 
@@ -2578,29 +3225,36 @@ Reply with color name or letter (e.g., 'red' or 'r'):
 
 Reply '0' to go back."""
 
+        elif current_state == UserState.COLOR_GAME_CONFIRM:
+            # Go back to amount entry
+            state.pop("stake_amount", None)
+            state["state"] = previous_state
+            breadcrumb = self._get_breadcrumb(UserState.COLOR_GAME_ENTER_AMOUNT)
+            selected_color = state.get("selected_color")
+            color_emoji = ColorGame.COLOR_EMOJIS.get(selected_color, "")
+            return f"""{breadcrumb}
+
+✅ Your color: {color_emoji} {selected_color.title()}
+
+Enter bet amount (R5-R500):
+Example: R30 or 50
+
+Reply '0' or 'b' to go back."""
+
         elif current_state == UserState.FOOTBALL_SELECT_MATCH:
-            # Go back from match selection (including when no matches) - restore original previous_state
-            original_prev = state.get("original_previous_state", previous_state)
-            if not original_prev:
-                # No previous state, go to main menu
-                self.user_states.pop(user.id, None)
-                return self._show_main_menu()
-            
-            # Go back to previous state (usually games menu or main menu)
-            self.user_states.pop(user.id, None)
-            if original_prev == UserState.VIEWING_GAMES_MENU:
+            # Go back from match selection
+            if previous_state == UserState.VIEWING_GAMES_MENU:
+                state["state"] = previous_state
                 return self._show_games(user)
             else:
+                self._clear_state(user.id)
                 return self._show_main_menu()
 
         elif current_state == UserState.FOOTBALL_SELECT_CHOICE:
-            # Go back to match selection - restore original previous_state
-            original_prev = state.get("original_previous_state", previous_state)
-            state["state"] = UserState.FOOTBALL_SELECT_MATCH
-            state["previous_state"] = original_prev
+            # Go back to match selection
             state.pop("match_id", None)
             state.pop("match", None)
-            state.pop("original_previous_state", None)
+            state["state"] = previous_state
             # Rebuild matches list
             matches = FootballYesNoGame.get_active_matches(db, limit=10)
             if not matches:
@@ -2647,13 +3301,10 @@ Active Matches:
             return matches_text + "\n\nReply '0' or 'b' to go back."
 
         elif current_state == UserState.FOOTBALL_ENTER_AMOUNT:
-            # Go back to choice selection - previous_state should be FOOTBALL_SELECT_MATCH
-            original_prev = state.get("original_previous_state", previous_state)
-            state["state"] = UserState.FOOTBALL_SELECT_CHOICE
-            state["previous_state"] = UserState.FOOTBALL_SELECT_MATCH
-            state["original_previous_state"] = original_prev
+            # Go back to choice selection
             state.pop("choice", None)
             state.pop("odds", None)
+            state["state"] = previous_state
             match_info = state.get("match", {})
             breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_SELECT_CHOICE)
             return f"""{breadcrumb}
@@ -2667,19 +3318,35 @@ Your choice (yes/no):
 
 Reply '0' or 'b' to go back."""
 
+        elif current_state == UserState.FOOTBALL_CONFIRM:
+            # Go back to amount entry
+            state.pop("stake_amount", None)
+            state["state"] = previous_state
+            breadcrumb = self._get_breadcrumb(UserState.FOOTBALL_ENTER_AMOUNT)
+            choice = state.get("choice")
+            odds = state.get("odds")
+            return f"""{breadcrumb}
+
+You chose: {choice.upper()} ({odds}x)
+
+Enter bet amount (R10-R1000):
+Example: R100 or 500
+
+Reply '0' or 'b' to go back."""
+
         elif current_state == UserState.VIEWING_GAMES_MENU:
             # Go back to main menu
-            self.user_states.pop(user.id, None)
+            self._clear_state(user.id)
             return self._show_main_menu()
 
         elif current_state == UserState.VIEWING_BALANCE_MENU:
             # Go back to main menu
-            self.user_states.pop(user.id, None)
+            self._clear_state(user.id)
             return self._show_main_menu()
 
         elif current_state == UserState.VIEWING_HELP_MENU:
             # Go back to main menu
-            self.user_states.pop(user.id, None)
+            self._clear_state(user.id)
             return self._show_main_menu()
 
         elif current_state in [
@@ -2687,13 +3354,17 @@ Reply '0' or 'b' to go back."""
             UserState.VIEWING_COLOR_GAME_RESULT,
             UserState.VIEWING_PICK3_RESULT,
         ]:
-            # Go back from result screen to games menu
-            self.user_states.pop(user.id, None)
-            return self._show_games(user)
+            # Go back from result screen
+            if previous_state:
+                state["state"] = previous_state
+                if previous_state == UserState.VIEWING_GAMES_MENU:
+                    return self._show_games(user)
+            self._clear_state(user.id)
+            return self._show_main_menu()
 
         else:
             # Unknown state or first step - go to main menu
-            self.user_states.pop(user.id, None)
+            self._clear_state(user.id)
             return self._show_main_menu()
 
     async def _handle_cancel(
@@ -2713,15 +3384,13 @@ Reply '0' or 'b' to go back."""
         Returns:
             Response message
         """
-        # Try to go back one step first
-        previous_state = state.get("previous_state")
-
-        # If there's a previous state, go back one step
-        if previous_state:
+        # Check if there's a state in back stack
+        back_stack = state.get("back_stack", [])
+        if back_stack:
             return await self._handle_back_navigation(user, state, db)
 
         # Otherwise, go to main menu
-        self.user_states.pop(user.id, None)
+        self._clear_state(user.id)
         return self._show_main_menu()
 
 
