@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin, get_db_session
@@ -28,11 +28,37 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 
+def _apply_user_search(query, search: Optional[str]):
+    """Filter users by id, phone substring, or telegram chat id (Phase 5)."""
+    if not search or not search.strip():
+        return query
+    s = search.strip()
+    if s.isdigit():
+        try:
+            uid = int(s)
+        except ValueError:
+            uid = None
+        parts = [
+            User.telegram_chat_id == s,
+            User.phone_number.contains(s),
+        ]
+        if uid is not None:
+            parts.insert(0, User.id == uid)
+        return query.filter(or_(*parts))
+    return query.filter(
+        or_(
+            User.phone_number.ilike(f"%{s}%"),
+            User.telegram_chat_id.contains(s),
+        )
+    )
+
+
 class UserListItem(BaseModel):
     """Schema for user list item."""
 
     id: int
-    phone_number: str
+    phone_number: Optional[str] = None
+    telegram_chat_id: Optional[str] = None
     is_active: bool
     is_blocked: bool
     created_at: str
@@ -53,7 +79,8 @@ class UserDetailResponse(BaseModel):
     """Schema for user detail response."""
 
     id: int
-    phone_number: str
+    phone_number: Optional[str] = None
+    telegram_chat_id: Optional[str] = None
     is_active: bool
     is_blocked: bool
     created_at: str
@@ -75,7 +102,10 @@ class BlockUserRequest(BaseModel):
 def list_users(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search by phone number"),
+    search: Optional[str] = Query(
+        None,
+        description="Search by user id, phone substring, or Telegram chat id",
+    ),
     is_blocked: Optional[bool] = Query(None, description="Filter by blocked status"),
     current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db_session),
@@ -86,7 +116,7 @@ def list_users(
     Args:
         page: Page number (starting from 1)
         page_size: Number of items per page (1-100)
-        search: Search term for phone number
+        search: Search by numeric id, phone, or telegram_chat_id
         is_blocked: Filter by blocked status
         current_admin: Current authenticated admin
         db: Database session
@@ -98,8 +128,7 @@ def list_users(
     query = db.query(User).join(Wallet, User.id == Wallet.user_id)
 
     # Apply filters
-    if search:
-        query = query.filter(User.phone_number.contains(search))
+    query = _apply_user_search(query, search)
 
     if is_blocked is not None:
         query = query.filter(User.is_blocked == is_blocked)
@@ -124,6 +153,7 @@ def list_users(
             {
                 "id": user.id,
                 "phone_number": user.phone_number,
+                "telegram_chat_id": user.telegram_chat_id,
                 "is_active": user.is_active,
                 "is_blocked": user.is_blocked,
                 "created_at": user.created_at.isoformat(),
@@ -218,6 +248,7 @@ def get_user_details(
     return UserDetailResponse(
         id=user.id,
         phone_number=user.phone_number,
+        telegram_chat_id=user.telegram_chat_id,
         is_active=user.is_active,
         is_blocked=user.is_blocked,
         created_at=user.created_at.isoformat(),
@@ -275,7 +306,11 @@ def block_user(
         action_type="block_user",
         entity_type="user",
         entity_id=user_id,
-        details={"reason": reason, "phone_number": user.phone_number},
+        details={
+            "reason": reason,
+            "phone_number": user.phone_number,
+            "telegram_chat_id": user.telegram_chat_id,
+        },
         db=db,
     )
 
@@ -327,7 +362,10 @@ def unblock_user(
         action_type="unblock_user",
         entity_type="user",
         entity_id=user_id,
-        details={"phone_number": user.phone_number},
+        details={
+            "phone_number": user.phone_number,
+            "telegram_chat_id": user.telegram_chat_id,
+        },
         db=db,
     )
 

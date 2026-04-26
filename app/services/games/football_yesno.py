@@ -19,6 +19,7 @@ from app.models.match import Match, MatchStatus, MatchResult
 from app.models.user import User
 from app.models.wallet import Wallet
 from app.services.bet_service import BetService, InvalidBetDataError
+from app.services.telegram_service import telegram_service
 from app.services.whatsapp import whatsapp_service
 
 logger = logging.getLogger(__name__)
@@ -265,10 +266,16 @@ class FootballYesNoGame:
                         )
 
                     # Send notification
-                    await whatsapp_service.send_message(
-                        to=user.phone_number,
-                        message=message,
-                    )
+                    if user.telegram_chat_id:
+                        await telegram_service.send_message(
+                            user.telegram_chat_id,
+                            message,
+                        )
+                    elif user.phone_number:
+                        await whatsapp_service.send_message(
+                            to=user.phone_number,
+                            message=message,
+                        )
 
                     logger.info(
                         f"Notification sent to user {user_id} for match {match_id}"
@@ -292,7 +299,8 @@ class FootballYesNoGame:
         """
         Settle a match and all associated bets (admin only).
 
-        All users with active bets on this match will be notified via WhatsApp.
+        Users with active bets on this match are notified on their channel
+        (WhatsApp or Telegram).
 
         Args:
             match_id: Match ID to settle

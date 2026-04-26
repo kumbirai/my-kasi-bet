@@ -1,8 +1,8 @@
 """
 Message router service.
 
-This module handles routing of incoming WhatsApp messages to appropriate
-handlers based on user state and message content.
+Routes incoming WhatsApp and Telegram messages to shared handlers
+(game flows, menus, deposits) based on user state and message content.
 """
 import logging
 import re
@@ -25,6 +25,10 @@ from app.services.games.color_game import ColorGame
 from app.services.games.football_yesno import FootballYesNoGame
 from app.services.games.lucky_wheel import LuckyWheelGame
 from app.services.games.pick_3 import Pick3Game
+from app.services.telegram_service import (
+    TelegramChatNotFoundError,
+    telegram_service,
+)
 from app.services.user_service import UserService
 from app.services.wallet_service import wallet_service
 from app.services.whatsapp import whatsapp_service
@@ -66,7 +70,7 @@ class UserState:
 
 class MessageRouter:
     """
-    Routes incoming WhatsApp messages to appropriate handlers.
+    Routes incoming WhatsApp and Telegram messages to appropriate handlers.
 
     This service manages the conversation flow, user registration,
     command parsing, and response generation.
@@ -81,6 +85,36 @@ class MessageRouter:
         """
         self.user_states: Dict[int, Dict[str, Any]] = {}
         self.user_service = UserService()
+
+    @staticmethod
+    def _channel_label(user: User) -> str:
+        return "Telegram" if user.telegram_chat_id else "WhatsApp"
+
+    async def _send_to_user(
+        self,
+        user: User,
+        message: str,
+        reply_to_message_id: Optional[Any] = None,
+    ) -> None:
+        """Send a text message on the user's channel (WhatsApp or Telegram)."""
+        if user.telegram_chat_id:
+            rid: Optional[int] = None
+            if reply_to_message_id is not None:
+                s = str(reply_to_message_id)
+                rid = int(s) if s.isdigit() else None
+            await telegram_service.send_message(
+                user.telegram_chat_id,
+                message,
+                reply_to_message_id=rid,
+            )
+        else:
+            await whatsapp_service.send_message(
+                user.phone_number or "",
+                message,
+                reply_to_message_id=str(reply_to_message_id)
+                if reply_to_message_id
+                else None,
+            )
 
     def _push_to_back_stack(self, user_id: int, state: str) -> None:
         """
@@ -381,6 +415,110 @@ class MessageRouter:
                         f"Failed to send error message: {send_error}", exc_info=True
                     )
 
+    async def route_message_telegram(
+        self,
+        chat_id: str,
+        message_text: str,
+        message_id: str,
+        db: Session,
+        username: Optional[str] = None,
+    ) -> None:
+        """
+        Route incoming Telegram message to shared handlers.
+
+        Args:
+            chat_id: Telegram chat ID (sender)
+            message_text: Message content
+            message_id: Telegram message ID
+            db: Database session
+            username: Optional Telegram username from message.from
+        """
+        try:
+            clean_message = clean_message_text(message_text)
+
+            existing_user = self.user_service.get_user_by_telegram_chat_id(
+                chat_id, db
+            )
+            is_new_user = existing_user is None
+
+            user = self.user_service.get_or_create_user_by_telegram(
+                chat_id, username, db
+            )
+
+            if user.is_blocked:
+                response = (
+                    "❌ Your account has been blocked. "
+                    "Please contact support for assistance."
+                )
+                await telegram_service.send_message(
+                    chat_id,
+                    response,
+                    reply_to_message_id=int(message_id) if message_id.isdigit() else None,
+                )
+                return
+
+            self.user_service.update_last_active(user, db)
+
+            if is_new_user:
+                response = self._get_welcome_message(user)
+                await telegram_service.send_message(
+                    chat_id,
+                    response,
+                    reply_to_message_id=int(message_id) if message_id.isdigit() else None,
+                )
+                return
+
+            state = self.user_states.get(user.id)
+
+            if state:
+                response = await self._handle_state_flow(
+                    user, clean_message, state, db
+                )
+            else:
+                response = await self._handle_main_menu(user, clean_message, db)
+
+            await telegram_service.send_message(
+                chat_id,
+                response,
+                reply_to_message_id=int(message_id) if message_id.isdigit() else None,
+            )
+
+        except ValueError as e:
+            logger.warning("Validation error: %s", e)
+            try:
+                await telegram_service.send_message(
+                    chat_id,
+                    "❌ Invalid input.\n\nReply 'menu' to restart.",
+                    reply_to_message_id=int(message_id) if message_id.isdigit() else None,
+                )
+            except TelegramChatNotFoundError:
+                logger.warning("Chat not found, skipping validation error reply")
+            except Exception as send_error:
+                logger.error(
+                    "Failed to send error message: %s", send_error, exc_info=True
+                )
+        except TelegramChatNotFoundError:
+            logger.warning(
+                "Telegram chat not found (chat_id=%s), skipping response", chat_id
+            )
+        except Exception as e:
+            logger.error("Error routing Telegram message: %s", e, exc_info=True)
+            try:
+                user = self.user_service.get_user_by_telegram_chat_id(chat_id, db)
+                if user:
+                    self._clear_state(user.id)
+                await telegram_service.send_message(
+                    chat_id,
+                    "❌ Something went wrong.\n\nReply 'menu' to restart.",
+                    reply_to_message_id=int(message_id) if message_id.isdigit() else None,
+                )
+            except TelegramChatNotFoundError:
+                logger.warning("Chat not found, skipping error reply")
+            except Exception as send_error:
+                logger.error(
+                    "Failed to send error message: %s", send_error, exc_info=True
+                )
+
     def _get_welcome_message(self, user: User) -> str:
         """
         Generate welcome message for new users.
@@ -391,11 +529,15 @@ class MessageRouter:
         Returns:
             Welcome message text
         """
+        if user.telegram_chat_id:
+            id_line = f"💬 Telegram chat: {user.telegram_chat_id}"
+        else:
+            id_line = f"📱 Phone: {user.phone_number}"
         return f"""🎉 Welcome to MyKasiBets!
 
 You're all set! Your account has been created.
 
-📱 Phone: {user.phone_number}
+{id_line}
 💰 Balance: R0.00
 
 What would you like to do?
@@ -657,9 +799,30 @@ Reply with number."""
         # Special case: In COLOR_GAME_SELECT_COLOR, "b" is a valid color (blue)
         # So "b" is NOT a global command in that state
         if current_state == UserState.COLOR_GAME_SELECT_COLOR:
-            global_commands = ["menu", "help", "balance", "games", "deposit", "withdraw", "0", "back"]
+            global_commands = [
+                "menu",
+                "start",
+                "help",
+                "balance",
+                "games",
+                "deposit",
+                "withdraw",
+                "0",
+                "back",
+            ]
         else:
-            global_commands = ["menu", "help", "balance", "games", "deposit", "withdraw", "0", "b", "back"]
+            global_commands = [
+                "menu",
+                "start",
+                "help",
+                "balance",
+                "games",
+                "deposit",
+                "withdraw",
+                "0",
+                "b",
+                "back",
+            ]
         
         return message_lower in global_commands
 
@@ -685,10 +848,10 @@ Reply with number."""
         message_lower = message.lower().strip()
         current_state = state.get("state") if state else None
 
-        if message_lower == "menu":
+        if message_lower in ("menu", "start"):
             self._clear_state(user.id)
             return self._show_main_menu()
-        
+
         elif message_lower in ["0", "b", "back"]:
             # Special case: In COLOR_GAME_SELECT_COLOR, "b" is a valid color (blue)
             # So we only handle "0" and "back" in that state
@@ -1230,7 +1393,7 @@ Reference: Your phone number"""
                     payment_method=payment_method,
                     proof_type="reference_number",
                     proof_value=message.strip(),
-                    notes="Submitted via WhatsApp",
+                    notes=f"Submitted via {self._channel_label(user)}",
                     db=db,
                 )
                 db.commit()
@@ -1243,7 +1406,9 @@ Reference: Your phone number"""
                 
                 deposit.proof_type = "reference_number"
                 deposit.proof_value = message.strip()
-                deposit.notes = f"Proof received via WhatsApp: {message.strip()}"
+                deposit.notes = (
+                    f"Proof received via {self._channel_label(user)}: {message.strip()}"
+                )
                 db.commit()
 
             # Clear state
@@ -1494,7 +1659,7 @@ Reply '0' or 'b' to go back."""
                 bank_name=bank_name,
                 account_number=account_number,
                 account_holder=account_holder,
-                notes="Submitted via WhatsApp",
+                notes=f"Submitted via {self._channel_label(user)}",
                 db=db,
             )
 
@@ -1782,7 +1947,7 @@ What would you like to do?
 Reply with number."""
 
                 # Send receipt immediately, then result
-                await whatsapp_service.send_message(user.phone_number, receipt_message)
+                await self._send_to_user(user, receipt_message)
                 return result_message
 
             except InvalidBetDataError as e:
@@ -2172,7 +2337,7 @@ What would you like to do?
 Reply with number."""
 
                 # Send receipt immediately, then result
-                await whatsapp_service.send_message(user.phone_number, receipt_message)
+                await self._send_to_user(user, receipt_message)
                 return result_message
 
             except ValueError as e:
@@ -2629,7 +2794,7 @@ What would you like to do?
 Reply with number."""
 
                 # Send receipt immediately, then result
-                await whatsapp_service.send_message(user.phone_number, receipt_message)
+                await self._send_to_user(user, receipt_message)
                 return result_message
 
             except ValueError as e:
@@ -2981,7 +3146,7 @@ Wait for match to end!"""
                 self._clear_state(user.id)
 
                 # Send receipt immediately
-                await whatsapp_service.send_message(user.phone_number, receipt_message)
+                await self._send_to_user(user, receipt_message)
                 
                 breadcrumb = self._get_breadcrumb()
                 return f"""{breadcrumb}

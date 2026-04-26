@@ -26,12 +26,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/bets", tags=["admin-bets"])
 
 
+def _user_display_label(user: Optional[User]) -> str:
+    if not user:
+        return "Unknown"
+    if user.phone_number:
+        return user.phone_number
+    if user.telegram_chat_id:
+        return user.telegram_chat_id
+    return f"User {user.id}"
+
+
 class BetResponse(BaseModel):
     """Schema for bet response."""
 
     id: int
     user_id: int
-    user_phone: str
+    user_phone: str  # best-available label: phone, Telegram id, or User {id}
     bet_type: BetType
     stake_amount: float
     bet_data: dict
@@ -157,7 +167,7 @@ def list_bets(
             BetResponse(
                 id=bet.id,
                 user_id=bet.user_id,
-                user_phone=user.phone_number if user else "Unknown",
+                user_phone=_user_display_label(user),
                 bet_type=bet.bet_type,
                 stake_amount=float(bet.stake_amount),
                 bet_data=bet_data,
@@ -218,7 +228,7 @@ def list_active_bets(
             BetResponse(
                 id=bet.id,
                 user_id=bet.user_id,
-                user_phone=user.phone_number if user else "Unknown",
+                user_phone=_user_display_label(user),
                 bet_type=bet.bet_type,
                 stake_amount=float(bet.stake_amount),
                 bet_data=bet_data,

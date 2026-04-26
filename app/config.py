@@ -19,11 +19,17 @@ class Settings(BaseSettings):
     """
     
     # WhatsApp Business API Configuration
-    WHATSAPP_API_URL: str = "https://graph.facebook.com/v18.0"
+    WHATSAPP_API_URL: str = "https://graph.facebook.com/v25.0"
     WHATSAPP_PHONE_NUMBER_ID: Optional[str] = None
     WHATSAPP_ACCESS_TOKEN: Optional[str] = None
     WHATSAPP_VERIFY_TOKEN: Optional[str] = None
-    
+
+    # Telegram Bot API (required when handling Telegram webhooks)
+    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    # If set, POST /webhook/telegram must send matching X-Telegram-Bot-Api-Secret-Token
+    # (pass the same value to Telegram setWebhook secret_token).
+    TELEGRAM_WEBHOOK_SECRET: Optional[str] = None
+
     # Database Configuration
     DATABASE_URL: str
     
@@ -41,6 +47,10 @@ class Settings(BaseSettings):
     
     # CORS Configuration
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://localhost:5174"
+    # Optional regex for admin dashboard when using ngrok (HTTPS tunnels). Empty disables.
+    CORS_ORIGIN_REGEX: Optional[str] = (
+        r"https?://[a-z0-9-]+\.(ngrok-free\.app|ngrok\.io)"
+    )
     
     # Logging Configuration
     LOG_LEVEL: str = "INFO"

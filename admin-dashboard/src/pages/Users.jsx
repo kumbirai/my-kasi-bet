@@ -2,6 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { userService } from '../services/userService';
 import toast from 'react-hot-toast';
 
+function userSummary(user) {
+  if (!user) return '';
+  if (user.phone_number && user.telegram_chat_id) {
+    return `User #${user.id} (phone: ${user.phone_number}, Telegram: ${user.telegram_chat_id})`;
+  }
+  if (user.phone_number) return `User #${user.id} (phone: ${user.phone_number})`;
+  if (user.telegram_chat_id) return `User #${user.id} (Telegram: ${user.telegram_chat_id})`;
+  return `User #${user.id}`;
+}
+
 const Users = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +63,7 @@ const Users = () => {
   };
 
   const handleUnblock = async (user) => {
-    if (!window.confirm(`Are you sure you want to unblock ${user.phone_number}?`)) {
+    if (!window.confirm(`Are you sure you want to unblock ${userSummary(user)}?`)) {
       return;
     }
 
@@ -82,13 +92,13 @@ const Users = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
-              Search by Phone
+              Search
             </label>
             <input
               type="text"
               value={search}
               onChange={handleSearch}
-              placeholder="Enter phone number..."
+              placeholder="User ID, phone, or Telegram chat ID..."
               className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md focus:outline-none focus:ring-2 focus:ring-true-cobalt-500"
             />
           </div>
@@ -129,7 +139,10 @@ const Users = () => {
                       ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase tracking-wider">
-                      Phone Number
+                      Phone
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase tracking-wider">
+                      Telegram chat ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase tracking-wider">
                       Balance
@@ -152,7 +165,10 @@ const Users = () => {
                         {user.id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">
-                        {user.phone_number}
+                        {user.phone_number ?? '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900 font-mono text-xs">
+                        {user.telegram_chat_id ?? '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">
                         R {user.wallet_balance.toFixed(2)}
@@ -231,7 +247,7 @@ const Users = () => {
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Block User</h2>
             <p className="text-shadow-grey-600 mb-4">
-              Are you sure you want to block {selectedUser?.phone_number}?
+              Are you sure you want to block {selectedUser ? userSummary(selectedUser) : ''}?
             </p>
             <div className="mb-4">
               <label className="block text-sm font-medium text-shadow-grey-700 mb-2">

@@ -11,7 +11,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, admin_analytics, admin_bets, admin_users, webhook
+from app.api import admin, admin_analytics, admin_bets, admin_users
+from app.api import telegram_webhook, whatsapp_webhook
 from app.config import settings
 from app.database import init_db
 from app.redis_client import check_redis_connection, close_redis_connection, get_redis_client
@@ -74,8 +75,8 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="MyKasiBets WhatsApp Betting Platform",
-    description="MVP WhatsApp-based betting platform API",
+    title="MyKasiBets Betting Platform",
+    description="MVP betting platform API (WhatsApp and Telegram)",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -101,18 +102,30 @@ if settings.ENVIRONMENT == "development":
         if origin not in cors_origins:
             cors_origins.append(origin)
 
+# Optional ngrok (and similar) origins for admin dashboard preflight when not in CORS_ORIGINS
+cors_regex = settings.CORS_ORIGIN_REGEX or None
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
+    allow_origin_regex=cors_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
 
-# Include routers
-# Webhook router at root level for WhatsApp webhook configuration
-app.include_router(webhook.router, tags=["webhook"])
+# Webhooks: separate paths per channel (see Phase 5 OPTIONS_AND_DECISIONS)
+app.include_router(
+    whatsapp_webhook.router,
+    prefix="/webhook/whatsapp",
+    tags=["webhook-whatsapp"],
+)
+app.include_router(
+    telegram_webhook.router,
+    prefix="/webhook/telegram",
+    tags=["webhook-telegram"],
+)
 # Admin routers with /api prefix
 app.include_router(admin.router, prefix="/api", tags=["admin"])
 app.include_router(admin_users.router, prefix="/api", tags=["admin"])
@@ -131,7 +144,7 @@ async def root() -> dict[str, str]:
         dict: API name, status, and version.
     """
     return {
-        "message": "MyKasiBets WhatsApp Betting Platform API",
+        "message": "MyKasiBets Betting Platform API",
         "status": "running",
         "version": "1.0.0",
     }

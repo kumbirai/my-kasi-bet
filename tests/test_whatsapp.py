@@ -15,7 +15,7 @@ from app.services.whatsapp import WhatsAppService
 def whatsapp_service_instance():
     """Create WhatsApp service instance with test credentials."""
     with patch("app.services.whatsapp.settings") as mock_settings:
-        mock_settings.WHATSAPP_API_URL = "https://graph.facebook.com/v18.0"
+        mock_settings.WHATSAPP_API_URL = "https://graph.facebook.com/v25.0"
         mock_settings.WHATSAPP_PHONE_NUMBER_ID = "test_phone_id"
         mock_settings.WHATSAPP_ACCESS_TOKEN = "test_token"
         service = WhatsAppService()
