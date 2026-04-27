@@ -22,9 +22,10 @@ fi
 
 echo "### Creating dummy certificate for $DOMAIN ..."
 docker compose run --rm --entrypoint "\
+  mkdir -p $CERT_PATH && \
   openssl req -x509 -nodes -newkey rsa:$RSA_KEY_SIZE -days 1 \
-    -keyout '$CERT_PATH/privkey.pem' \
-    -out '$CERT_PATH/fullchain.pem' \
+    -keyout $CERT_PATH/privkey.pem \
+    -out $CERT_PATH/fullchain.pem \
     -subj '/CN=localhost'" certbot
 
 echo "### Starting nginx with dummy certificate ..."
