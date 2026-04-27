@@ -1,0 +1,15 @@
+{
+  "id": "session-1777274630845",
+  "startedAt": "2026-04-27T07:23:50.845Z",
+  "cwd": "/home/coach/cursor/python/my-kasi-bet",
+  "context": {},
+  "metrics": {
+    "edits": 14,
+    "commands": 0,
+    "tasks": 0,
+    "errors": 0
+  },
+  "restoredAt": "2026-04-27T10:05:45.336Z",
+  "endedAt": "2026-04-27T10:07:31.804Z",
+  "duration": 9820959
+}

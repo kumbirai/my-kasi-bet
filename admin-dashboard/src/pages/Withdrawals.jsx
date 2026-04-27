@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { withdrawalService } from '../services/withdrawalService';
 import toast from 'react-hot-toast';
+import {
+  Icon, Badge, Modal, Pagination, SkeletonRows,
+  tableCls, theadCls, thCls, tdCls, trHoverCls,
+  inputCls, labelCls, textareaCls,
+  btnSecondary, btnDanger, btnSuccess,
+} from '../components/ui';
 
 const Withdrawals = () => {
   const [activeTab, setActiveTab] = useState('pending');
@@ -16,247 +22,179 @@ const Withdrawals = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
 
-  useEffect(() => {
-    loadWithdrawals();
-  }, [activeTab, page]);
+  useEffect(() => { loadWithdrawals(); }, [activeTab, page]);
 
   const loadWithdrawals = async () => {
     setLoading(true);
     try {
       if (activeTab === 'pending') {
         const data = await withdrawalService.getPendingWithdrawals();
-        setWithdrawals(data || []);
-        setTotal(data?.length || 0);
-        setTotalPages(1);
+        setWithdrawals(data || []); setTotal(data?.length || 0); setTotalPages(1);
       } else {
         const data = await withdrawalService.getWithdrawals(page, pageSize);
-        setWithdrawals(data.withdrawals || []);
-        setTotal(data.total || 0);
-        setTotalPages(data.total_pages || 0);
+        setWithdrawals(data.withdrawals || []); setTotal(data.total || 0); setTotalPages(data.total_pages || 0);
       }
-    } catch (error) {
-      toast.error('Failed to load withdrawals');
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast.error('Failed to load withdrawals'); }
+    finally { setLoading(false); }
   };
 
   const handleApprove = async () => {
     try {
       await withdrawalService.approveWithdrawal(selectedWithdrawal.id, paymentReference || null);
-      toast.success('Withdrawal approved successfully');
-      setShowApproveModal(false);
-      setSelectedWithdrawal(null);
-      setPaymentReference('');
-      loadWithdrawals();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to approve withdrawal');
-    }
+      toast.success('Withdrawal approved');
+      setShowApproveModal(false); setSelectedWithdrawal(null); setPaymentReference(''); loadWithdrawals();
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to approve withdrawal'); }
   };
 
   const handleReject = async () => {
-    if (!rejectionReason.trim()) {
-      toast.error('Please provide a rejection reason');
-      return;
-    }
-
+    if (!rejectionReason.trim()) { toast.error('Please provide a rejection reason'); return; }
     try {
       await withdrawalService.rejectWithdrawal(selectedWithdrawal.id, rejectionReason);
-      toast.success('Withdrawal rejected successfully');
-      setShowRejectModal(false);
-      setRejectionReason('');
-      setSelectedWithdrawal(null);
-      loadWithdrawals();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to reject withdrawal');
-    }
+      toast.success('Withdrawal rejected');
+      setShowRejectModal(false); setRejectionReason(''); setSelectedWithdrawal(null); loadWithdrawals();
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to reject withdrawal'); }
   };
 
-  return (
-    <div>
-      <h1 className="text-2xl font-bold text-shadow-grey-900 mb-6">Withdrawals</h1>
+  const fmtR = (n) => `R ${parseFloat(n || 0).toFixed(2)}`;
 
-      <div className="border-b border-shadow-grey-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => {
-              setActiveTab('pending');
-              setPage(1);
-            }}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'pending'
-                ? 'border-true-cobalt-500 text-true-cobalt-600'
-                : 'border-transparent text-shadow-grey-500 hover:text-shadow-grey-700'
-            }`}
-          >
-            Pending
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('all');
-              setPage(1);
-            }}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'all'
-                ? 'border-true-cobalt-500 text-true-cobalt-600'
-                : 'border-transparent text-shadow-grey-500 hover:text-shadow-grey-700'
-            }`}
-          >
-            All Withdrawals
-          </button>
-        </nav>
+  const TabBtn = ({ id, label }) => (
+    <button
+      onClick={() => { setActiveTab(id); setPage(1); }}
+      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+        activeTab === id
+          ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20'
+          : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-white">Withdrawals</h1>
+
+      {/* Tabs */}
+      <div className="flex gap-2">
+        <TabBtn id="pending" label="Pending" />
+        <TabBtn id="all" label="All Withdrawals" />
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-shadow-grey-600">Loading withdrawals...</div>
-        ) : withdrawals.length === 0 ? (
-          <div className="p-8 text-center text-shadow-grey-600">No withdrawals found</div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-shadow-grey-200">
-                <thead className="bg-shadow-grey-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">User ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Bank Details</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Actions</th>
+      {/* Table */}
+      <div className={tableCls}>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className={theadCls}>
+              <tr>
+                <th className={thCls}>ID</th>
+                <th className={thCls}>User ID</th>
+                <th className={thCls}>Amount</th>
+                <th className={thCls}>Bank Details</th>
+                <th className={thCls}>Status</th>
+                <th className={thCls}>Created</th>
+                <th className={thCls}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <SkeletonRows cols={7} rows={8} />
+              ) : withdrawals.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-14 text-center text-slate-500 text-sm">No withdrawals found</td>
+                </tr>
+              ) : (
+                withdrawals.map((w) => (
+                  <tr key={w.id} className={trHoverCls}>
+                    <td className={`${tdCls} font-mono text-xs text-slate-500`}>{w.id}</td>
+                    <td className={tdCls}>{w.user_id}</td>
+                    <td className={`${tdCls} text-amber-400 font-medium`}>{fmtR(w.amount)}</td>
+                    <td className={tdCls}>
+                      <div className="text-sm text-slate-300 leading-relaxed">
+                        {w.bank_name && <p className="font-medium">{w.bank_name}</p>}
+                        {w.account_number && <p className="text-slate-500 font-mono text-xs">Acc: {w.account_number}</p>}
+                        {w.account_holder && <p className="text-slate-500 text-xs">{w.account_holder}</p>}
+                      </div>
+                    </td>
+                    <td className={tdCls}><Badge status={w.status} /></td>
+                    <td className={`${tdCls} text-slate-500`}>{new Date(w.created_at).toLocaleString()}</td>
+                    <td className={tdCls}>
+                      {w.status === 'pending' && (
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => { setSelectedWithdrawal(w); setShowApproveModal(true); }}
+                            className="text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => { setSelectedWithdrawal(w); setShowRejectModal(true); }}
+                            className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-shadow-grey-200">
-                  {withdrawals.map((w) => (
-                    <tr key={w.id} className="hover:bg-shadow-grey-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">{w.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">{w.user_id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-900">R {parseFloat(w.amount).toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-shadow-grey-500">
-                        {w.bank_name && <div>{w.bank_name}</div>}
-                        {w.account_number && <div>Acc: {w.account_number}</div>}
-                        {w.account_holder && <div>{w.account_holder}</div>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          w.status === 'approved' ? 'bg-periwinkle-100 text-periwinkle-800' :
-                          w.status === 'rejected' ? 'bg-shadow-grey-200 text-shadow-grey-800' :
-                          'bg-soft-periwinkle-100 text-soft-periwinkle-800'
-                        }`}>
-                          {w.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-shadow-grey-500">
-                        {new Date(w.created_at).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {w.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setSelectedWithdrawal(w);
-                                setShowApproveModal(true);
-                              }}
-                              className="text-periwinkle-600 hover:text-periwinkle-900 mr-4"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedWithdrawal(w);
-                                setShowRejectModal(true);
-                              }}
-                              className="text-shadow-grey-700 hover:text-shadow-grey-900"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {activeTab === 'all' && (
+          <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} onPage={setPage} />
         )}
       </div>
 
-      {showApproveModal && (
-        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Approve Withdrawal</h2>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
-                Payment Reference (optional)
-              </label>
-              <input
-                type="text"
-                value={paymentReference}
-                onChange={(e) => setPaymentReference(e.target.value)}
-                placeholder="Enter payment reference..."
-                className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md"
-              />
-            </div>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowApproveModal(false);
-                  setSelectedWithdrawal(null);
-                  setPaymentReference('');
-                }}
-                className="px-4 py-2 text-sm bg-shadow-grey-100 rounded-md"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleApprove}
-                className="px-4 py-2 text-sm text-white bg-periwinkle-600 rounded-md"
-              >
-                Approve
-              </button>
-            </div>
-          </div>
+      {/* Approve modal */}
+      <Modal
+        open={showApproveModal}
+        onClose={() => { setShowApproveModal(false); setSelectedWithdrawal(null); setPaymentReference(''); }}
+        title="Approve Withdrawal"
+      >
+        <p className="text-sm text-slate-400 mb-4">
+          Approve withdrawal of <span className="text-amber-400 font-semibold">{fmtR(selectedWithdrawal?.amount)}</span> for user {selectedWithdrawal?.user_id}?
+        </p>
+        <div className="mb-5">
+          <label className={labelCls}>Payment Reference <span className="text-slate-500">(optional)</span></label>
+          <input
+            type="text"
+            value={paymentReference}
+            onChange={(e) => setPaymentReference(e.target.value)}
+            placeholder="Enter payment reference…"
+            className={inputCls}
+          />
         </div>
-      )}
+        <div className="flex justify-end gap-3">
+          <button onClick={() => { setShowApproveModal(false); setSelectedWithdrawal(null); setPaymentReference(''); }} className={btnSecondary}>Cancel</button>
+          <button onClick={handleApprove} className={btnSuccess}>
+            <Icon name="check" className="w-4 h-4" />
+            Approve
+          </button>
+        </div>
+      </Modal>
 
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Reject Withdrawal</h2>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-shadow-grey-700 mb-2">
-                Rejection Reason
-              </label>
-              <textarea
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 border border-shadow-grey-300 rounded-md"
-              />
-            </div>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowRejectModal(false);
-                  setRejectionReason('');
-                  setSelectedWithdrawal(null);
-                }}
-                className="px-4 py-2 text-sm bg-shadow-grey-100 rounded-md"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReject}
-                className="px-4 py-2 text-sm text-white bg-shadow-grey-700 rounded-md"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
+      {/* Reject modal */}
+      <Modal
+        open={showRejectModal}
+        onClose={() => { setShowRejectModal(false); setRejectionReason(''); setSelectedWithdrawal(null); }}
+        title="Reject Withdrawal"
+      >
+        <div className="mb-5">
+          <label className={labelCls}>Rejection Reason <span className="text-red-400">*</span></label>
+          <textarea
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            placeholder="Enter reason for rejection…"
+            rows={3}
+            className={textareaCls}
+          />
         </div>
-      )}
+        <div className="flex justify-end gap-3">
+          <button onClick={() => { setShowRejectModal(false); setRejectionReason(''); setSelectedWithdrawal(null); }} className={btnSecondary}>Cancel</button>
+          <button onClick={handleReject} className={btnDanger}>Reject</button>
+        </div>
+      </Modal>
     </div>
   );
 };

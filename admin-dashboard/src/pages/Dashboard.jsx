@@ -1,163 +1,121 @@
 import React, { useState, useEffect } from 'react';
 import { analyticsService } from '../services/analyticsService';
+import { Icon } from '../components/ui';
 
-const StatCard = ({ title, value, icon, color }) => {
-  const colors = {
-    blue: 'text-true-cobalt-600 bg-true-cobalt-50',
-    green: 'text-periwinkle-600 bg-periwinkle-50',
-    yellow: 'text-soft-periwinkle-400 bg-soft-periwinkle-50',
-    red: 'text-shadow-grey-700 bg-shadow-grey-100',
-    purple: 'text-lavender-mist-600 bg-lavender-mist-50',
-    indigo: 'text-true-cobalt-600 bg-true-cobalt-50',
-  };
-
-  return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-medium text-shadow-grey-600">{title}</h3>
-          <p className={`text-3xl font-bold mt-2 ${colors[color]?.split(' ')[0] || 'text-shadow-grey-900'}`}>
-            {typeof value === 'number' && value >= 1000
-              ? (value / 1000).toFixed(1) + 'K'
-              : typeof value === 'number' && value < 1 && value > 0
-              ? value.toFixed(2)
-              : typeof value === 'number'
-              ? value.toLocaleString()
-              : value}
-          </p>
-        </div>
-        <div className={`text-4xl ${colors[color]?.split(' ')[1] || 'bg-shadow-grey-50'} p-3 rounded-lg`}>
-          {icon}
-        </div>
-      </div>
+const StatCard = ({ title, value, icon, accent }) => (
+  <div className="bg-kasi-800 border border-white/[0.05] rounded-xl p-5 hover:border-white/10 transition-colors">
+    <div className={`inline-flex p-2.5 rounded-xl mb-4 ${accent}`}>
+      <Icon name={icon} className="w-5 h-5" />
     </div>
-  );
-};
+    <p className="text-xl font-bold text-white leading-tight mb-0.5">{value}</p>
+    <p className="text-sm text-slate-400">{title}</p>
+  </div>
+);
+
+const RevenueCard = ({ title, value, positive }) => (
+  <div className="bg-kasi-800 border border-white/[0.05] rounded-xl p-5">
+    <p className="text-sm text-slate-400 mb-3">{title}</p>
+    <p className={`text-2xl font-bold ${positive === undefined ? 'text-white' : positive ? 'text-emerald-400' : 'text-red-400'}`}>
+      {value}
+    </p>
+  </div>
+);
+
+const SkeletonCard = () => (
+  <div className="bg-kasi-800 border border-white/[0.05] rounded-xl p-5 animate-pulse">
+    <div className="w-10 h-10 bg-kasi-700 rounded-xl mb-4" />
+    <div className="h-6 bg-kasi-700 rounded w-20 mb-2" />
+    <div className="h-4 bg-kasi-700 rounded w-28" />
+  </div>
+);
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
-    total_users: 0,
-    active_users: 0,
-    blocked_users: 0,
-    total_deposits: 0,
-    total_withdrawals: 0,
-    pending_deposits: 0,
-    pending_withdrawals: 0,
-    total_bets: 0,
-    active_bets: 0,
-    total_wagered: 0,
-    total_payouts: 0,
-    net_revenue: 0,
-    platform_balance: 0,
+    total_users: 0, active_users: 0, blocked_users: 0,
+    total_deposits: 0, total_withdrawals: 0,
+    pending_deposits: 0, pending_withdrawals: 0,
+    total_bets: 0, active_bets: 0,
+    total_wagered: 0, total_payouts: 0,
+    net_revenue: 0, platform_balance: 0,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboardStats();
-    // Refresh every 30 seconds
-    const interval = setInterval(loadDashboardStats, 30000);
-    return () => clearInterval(interval);
+    loadStats();
+    const id = setInterval(loadStats, 30000);
+    return () => clearInterval(id);
   }, []);
 
-  const loadDashboardStats = async () => {
+  const loadStats = async () => {
     try {
       const data = await analyticsService.getDashboardStats();
       setStats(data);
-    } catch (error) {
-      console.error('Failed to load dashboard stats:', error);
+    } catch (err) {
+      console.error('Failed to load dashboard stats:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-shadow-grey-600">Loading dashboard...</div>
-      </div>
-    );
-  }
+  const fmtN = (n) => (typeof n === 'number' ? n.toLocaleString() : n ?? '—');
+  const fmtR = (n) =>
+    `R ${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-shadow-grey-900 mb-6">Dashboard</h1>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <StatCard
-          title="Total Users"
-          value={stats.total_users}
-          icon="👥"
-          color="blue"
-        />
-        <StatCard
-          title="Active Bets"
-          value={stats.active_bets}
-          icon="🎲"
-          color="green"
-        />
-        <StatCard
-          title="Pending Deposits"
-          value={stats.pending_deposits}
-          icon="💰"
-          color="yellow"
-        />
-        <StatCard
-          title="Pending Withdrawals"
-          value={stats.pending_withdrawals}
-          icon="💸"
-          color="red"
-        />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+        <span className="text-xs text-slate-600 bg-kasi-800 border border-white/[0.05] px-3 py-1.5 rounded-lg">
+          Auto-refreshes every 30s
+        </span>
       </div>
 
-      {/* Revenue Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-shadow-grey-600">Total Deposits</h3>
-          <p className="text-3xl font-bold text-periwinkle-600 mt-2">
-            R {stats.total_deposits.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-shadow-grey-600">Total Withdrawals</h3>
-          <p className="text-3xl font-bold text-shadow-grey-700 mt-2">
-            R {stats.total_withdrawals.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-shadow-grey-600">Net Revenue</h3>
-          <p className={`text-3xl font-bold mt-2 ${stats.net_revenue >= 0 ? 'text-periwinkle-600' : 'text-shadow-grey-700'}`}>
-            R {stats.net_revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-        </div>
+      {/* Primary stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+        ) : (
+          <>
+            <StatCard title="Total Users"          value={fmtN(stats.total_users)}          icon="users"      accent="bg-blue-500/10 text-blue-400" />
+            <StatCard title="Active Bets"          value={fmtN(stats.active_bets)}          icon="bets"       accent="bg-purple-500/10 text-purple-400" />
+            <StatCard title="Pending Deposits"     value={fmtN(stats.pending_deposits)}     icon="deposit"    accent="bg-amber-500/10 text-amber-400" />
+            <StatCard title="Pending Withdrawals"  value={fmtN(stats.pending_withdrawals)}  icon="withdrawal" accent="bg-orange-500/10 text-orange-400" />
+          </>
+        )}
       </div>
 
-      {/* Additional Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Total Bets"
-          value={stats.total_bets}
-          icon="🎯"
-          color="purple"
-        />
-        <StatCard
-          title="Total Wagered"
-          value={`R ${stats.total_wagered.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          icon="💵"
-          color="indigo"
-        />
-        <StatCard
-          title="Total Payouts"
-          value={`R ${stats.total_payouts.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          icon="🏆"
-          color="green"
-        />
-        <StatCard
-          title="Platform Balance"
-          value={`R ${stats.platform_balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          icon="💳"
-          color="blue"
-        />
+      {/* Revenue row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-kasi-800 border border-white/[0.05] rounded-xl p-5 h-24 animate-pulse" />
+          ))
+        ) : (
+          <>
+            <RevenueCard title="Total Deposits"    value={fmtR(stats.total_deposits)}    positive />
+            <RevenueCard title="Total Withdrawals" value={fmtR(stats.total_withdrawals)} positive={false} />
+            <RevenueCard
+              title="Net Revenue"
+              value={fmtR(stats.net_revenue)}
+              positive={stats.net_revenue >= 0}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Secondary stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+        ) : (
+          <>
+            <StatCard title="Total Bets"       value={fmtN(stats.total_bets)}       icon="bets"       accent="bg-purple-500/10 text-purple-400" />
+            <StatCard title="Total Wagered"    value={fmtR(stats.total_wagered)}    icon="coin"       accent="bg-blue-500/10 text-blue-400" />
+            <StatCard title="Total Payouts"    value={fmtR(stats.total_payouts)}    icon="wallet"     accent="bg-emerald-500/10 text-emerald-400" />
+            <StatCard title="Platform Balance" value={fmtR(stats.platform_balance)} icon="wallet"     accent="bg-amber-500/10 text-amber-400" />
+          </>
+        )}
       </div>
     </div>
   );

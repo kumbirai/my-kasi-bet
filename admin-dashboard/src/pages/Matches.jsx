@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { matchService } from '../services/matchService';
 import toast from 'react-hot-toast';
+import {
+  Icon, Badge, Modal, SkeletonRows,
+  tableCls, theadCls, thCls, tdCls, trHoverCls,
+  inputCls, selectCls, labelCls, btnPrimary, btnSecondary, btnSuccess,
+} from '../components/ui';
+
+const EMPTY_FORM = { home_team: '', away_team: '', event_description: '', yes_odds: '', no_odds: '' };
 
 const Matches = () => {
   const [matches, setMatches] = useState([]);
@@ -8,25 +15,17 @@ const Matches = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [formData, setFormData] = useState({
-    home_team: '',
-    away_team: '',
-    event_description: '',
-    yes_odds: '',
-    no_odds: '',
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
   const [settleResult, setSettleResult] = useState('yes');
 
-  useEffect(() => {
-    loadMatches();
-  }, []);
+  useEffect(() => { loadMatches(); }, []);
 
   const loadMatches = async () => {
     setLoading(true);
     try {
       const data = await matchService.getMatches();
       setMatches(data || []);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load matches');
     } finally {
       setLoading(false);
@@ -41,221 +40,164 @@ const Matches = () => {
         yes_odds: parseFloat(formData.yes_odds),
         no_odds: parseFloat(formData.no_odds),
       });
-      toast.success('Match created successfully');
+      toast.success('Match created');
       setShowCreateModal(false);
-      setFormData({
-        home_team: '',
-        away_team: '',
-        event_description: '',
-        yes_odds: '',
-        no_odds: '',
-      });
+      setFormData(EMPTY_FORM);
       loadMatches();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to create match');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to create match');
     }
   };
 
   const handleSettle = async () => {
     try {
       await matchService.settleMatch(selectedMatch.id, settleResult);
-      toast.success('Match settled successfully');
+      toast.success('Match settled');
       setShowSettleModal(false);
       setSelectedMatch(null);
       loadMatches();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to settle match');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to settle match');
     }
   };
 
+  const field = (key, val) => setFormData((f) => ({ ...f, [key]: val }));
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-shadow-grey-900">Matches</h1>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 bg-true-cobalt-600 text-white rounded-md hover:bg-true-cobalt-700"
-        >
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white">Matches</h1>
+        <button onClick={() => setShowCreateModal(true)} className={btnPrimary}>
+          <Icon name="plus" className="w-4 h-4" />
           Create Match
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center">Loading matches...</div>
-        ) : matches.length === 0 ? (
-          <div className="p-8 text-center">No matches found</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-shadow-grey-200">
-              <thead className="bg-shadow-grey-50">
+      {/* Table */}
+      <div className={tableCls}>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className={theadCls}>
+              <tr>
+                <th className={thCls}>ID</th>
+                <th className={thCls}>Match</th>
+                <th className={thCls}>Event</th>
+                <th className={thCls}>Yes Odds</th>
+                <th className={thCls}>No Odds</th>
+                <th className={thCls}>Status</th>
+                <th className={thCls}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <SkeletonRows cols={7} rows={6} />
+              ) : matches.length === 0 ? (
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Match</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Event</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Yes Odds</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">No Odds</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Actions</th>
+                  <td colSpan={7} className="px-6 py-14 text-center text-slate-500 text-sm">
+                    No matches found
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-shadow-grey-200">
-                {matches.map((match) => (
-                  <tr key={match.id} className="hover:bg-shadow-grey-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{match.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {match.home_team} vs {match.away_team}
+              ) : (
+                matches.map((match) => (
+                  <tr key={match.id} className={trHoverCls}>
+                    <td className={`${tdCls} font-mono text-xs text-slate-500`}>{match.id}</td>
+                    <td className={`${tdCls} font-medium text-white`}>
+                      {match.home_team} <span className="text-slate-500 font-normal">vs</span> {match.away_team}
                     </td>
-                    <td className="px-6 py-4 text-sm">{match.event_description}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{match.yes_odds}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{match.no_odds}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        match.status === 'settled' ? 'bg-periwinkle-100 text-periwinkle-800' :
-                        match.status === 'active' ? 'bg-true-cobalt-100 text-true-cobalt-800' :
-                        'bg-shadow-grey-100 text-shadow-grey-800'
-                      }`}>
-                        {match.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className={`${tdCls} text-slate-400 max-w-xs truncate`}>{match.event_description}</td>
+                    <td className={`${tdCls} text-emerald-400 font-mono font-medium`}>{match.yes_odds}</td>
+                    <td className={`${tdCls} text-red-400 font-mono font-medium`}>{match.no_odds}</td>
+                    <td className={tdCls}><Badge status={match.status} /></td>
+                    <td className={tdCls}>
                       {match.status === 'active' && (
                         <button
-                          onClick={() => {
-                            setSelectedMatch(match);
-                            setShowSettleModal(true);
-                          }}
-                          className="text-true-cobalt-600 hover:text-true-cobalt-900"
+                          onClick={() => { setSelectedMatch(match); setShowSettleModal(true); }}
+                          className="text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
                         >
                           Settle
                         </button>
                       )}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Create Match</h2>
-            <form onSubmit={handleCreate}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Home Team</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.home_team}
-                    onChange={(e) => setFormData({ ...formData, home_team: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Away Team</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.away_team}
-                    onChange={(e) => setFormData({ ...formData, away_team: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Event Description</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.event_description}
-                    onChange={(e) => setFormData({ ...formData, event_description: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Yes Odds</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={formData.yes_odds}
-                      onChange={(e) => setFormData({ ...formData, yes_odds: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-shadow-grey-700 mb-2">No Odds</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={formData.no_odds}
-                      onChange={(e) => setFormData({ ...formData, no_odds: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-sm bg-shadow-grey-100 rounded-md"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm text-white bg-true-cobalt-600 rounded-md"
-                >
-                  Create
-                </button>
-              </div>
-            </form>
+      {/* Create modal */}
+      <Modal
+        open={showCreateModal}
+        onClose={() => { setShowCreateModal(false); setFormData(EMPTY_FORM); }}
+        title="Create Match"
+      >
+        <form onSubmit={handleCreate} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Home Team</label>
+              <input type="text" required value={formData.home_team} onChange={(e) => field('home_team', e.target.value)} className={inputCls} placeholder="e.g. Kaizer Chiefs" />
+            </div>
+            <div>
+              <label className={labelCls}>Away Team</label>
+              <input type="text" required value={formData.away_team} onChange={(e) => field('away_team', e.target.value)} className={inputCls} placeholder="e.g. Orlando Pirates" />
+            </div>
           </div>
-        </div>
-      )}
+          <div>
+            <label className={labelCls}>Event Description</label>
+            <input type="text" required value={formData.event_description} onChange={(e) => field('event_description', e.target.value)} className={inputCls} placeholder="Will Kaizer Chiefs win?" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Yes Odds</label>
+              <input type="number" step="0.01" min="1" required value={formData.yes_odds} onChange={(e) => field('yes_odds', e.target.value)} className={inputCls} placeholder="1.90" />
+            </div>
+            <div>
+              <label className={labelCls}>No Odds</label>
+              <input type="number" step="0.01" min="1" required value={formData.no_odds} onChange={(e) => field('no_odds', e.target.value)} className={inputCls} placeholder="2.10" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => { setShowCreateModal(false); setFormData(EMPTY_FORM); }} className={btnSecondary}>
+              Cancel
+            </button>
+            <button type="submit" className={btnPrimary}>Create Match</button>
+          </div>
+        </form>
+      </Modal>
 
-      {showSettleModal && (
-        <div className="fixed inset-0 bg-shadow-grey-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Settle Match</h2>
-            <p className="mb-4">{selectedMatch?.home_team} vs {selectedMatch?.away_team}</p>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-shadow-grey-700 mb-2">Result</label>
-              <select
-                value={settleResult}
-                onChange={(e) => setSettleResult(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
-              >
+      {/* Settle modal */}
+      <Modal
+        open={showSettleModal}
+        onClose={() => { setShowSettleModal(false); setSelectedMatch(null); }}
+        title="Settle Match"
+      >
+        {selectedMatch && (
+          <>
+            <p className="text-sm text-slate-400 mb-1">Settling result for:</p>
+            <p className="text-base font-semibold text-white mb-4">
+              {selectedMatch.home_team} <span className="text-slate-500 font-normal">vs</span> {selectedMatch.away_team}
+            </p>
+            <div className="mb-5">
+              <label className={labelCls}>Outcome</label>
+              <select value={settleResult} onChange={(e) => setSettleResult(e.target.value)} className={selectCls}>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
             </div>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowSettleModal(false);
-                  setSelectedMatch(null);
-                }}
-                className="px-4 py-2 text-sm bg-shadow-grey-100 rounded-md"
-              >
+            <div className="flex justify-end gap-3">
+              <button onClick={() => { setShowSettleModal(false); setSelectedMatch(null); }} className={btnSecondary}>
                 Cancel
               </button>
-              <button
-                onClick={handleSettle}
-                className="px-4 py-2 text-sm text-white bg-true-cobalt-600 rounded-md"
-              >
-                Settle
+              <button onClick={handleSettle} className={btnSuccess}>
+                <Icon name="check" className="w-4 h-4" />
+                Confirm Settlement
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 };

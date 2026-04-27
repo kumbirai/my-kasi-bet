@@ -3,21 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { inputCls, btnPrimary } from '../components/ui';
 
 const Login = () => {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm();
+  const { register, handleSubmit, formState: { errors } } = useForm();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard', { replace: true });
-    }
+    if (isAuthenticated) navigate('/dashboard', { replace: true });
   }, [isAuthenticated, navigate]);
 
   const onSubmit = async (data) => {
@@ -30,7 +25,7 @@ const Login = () => {
       } else {
         toast.error(result.error || 'Login failed');
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred during login');
     } finally {
       setIsLoading(false);
@@ -38,20 +33,31 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-shadow-grey-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-shadow-grey-900">
-            Admin Dashboard
-          </h2>
-          <p className="mt-2 text-center text-sm text-shadow-grey-600">
-            Sign in to your admin account
-          </p>
+    <div className="min-h-screen bg-kasi-900 flex items-center justify-center p-4">
+      {/* Ambient glow */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-600/[0.07] rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-900/[0.08] rounded-full blur-3xl" />
+      </div>
+
+      <div className="w-full max-w-sm relative">
+        {/* Brand */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 mb-4 shadow-xl shadow-blue-600/25">
+            <span className="text-xl font-black text-white tracking-tight">KB</span>
+          </div>
+          <h1 className="text-xl font-bold text-white">MyKasiBets</h1>
+          <p className="text-sm text-slate-500 mt-1">Admin Dashboard</p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="rounded-md shadow-sm -space-y-px">
+
+        {/* Card */}
+        <div className="bg-kasi-800 border border-white/[0.08] rounded-2xl p-6 shadow-2xl">
+          <h2 className="text-base font-semibold text-white mb-1">Sign in to your account</h2>
+          <p className="text-sm text-slate-500 mb-6">Enter your admin credentials to continue</p>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1.5">
                 Email address
               </label>
               <input
@@ -62,48 +68,60 @@ const Login = () => {
                     message: 'Invalid email address',
                   },
                 })}
+                id="email"
                 type="email"
                 autoComplete="email"
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-shadow-grey-300 placeholder-shadow-grey-500 text-shadow-grey-900 rounded-t-md focus:outline-none focus:ring-true-cobalt-500 focus:border-true-cobalt-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
+                placeholder="admin@example.com"
+                className={inputCls}
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-shadow-grey-700">{errors.email.message}</p>
+                <p className="mt-1.5 text-xs text-red-400">{errors.email.message}</p>
               )}
             </div>
+
             <div>
-              <label htmlFor="password" className="sr-only">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1.5">
                 Password
               </label>
               <input
                 {...register('password', {
                   required: 'Password is required',
-                  minLength: {
-                    value: 8,
-                    message: 'Password must be at least 8 characters',
-                  },
+                  minLength: { value: 8, message: 'Minimum 8 characters' },
                 })}
+                id="password"
                 type="password"
                 autoComplete="current-password"
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-shadow-grey-300 placeholder-shadow-grey-500 text-shadow-grey-900 rounded-b-md focus:outline-none focus:ring-true-cobalt-500 focus:border-true-cobalt-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
+                placeholder="••••••••"
+                className={inputCls}
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-shadow-grey-700">{errors.password.message}</p>
+                <p className="mt-1.5 text-xs text-red-400">{errors.password.message}</p>
               )}
             </div>
-          </div>
 
-          <div>
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-true-cobalt-600 hover:bg-true-cobalt-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-true-cobalt-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`${btnPrimary} w-full justify-center mt-2`}
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Signing in…
+                </>
+              ) : (
+                'Sign in'
+              )}
             </button>
-          </div>
-        </form>
+          </form>
+        </div>
+
+        <p className="text-center text-xs text-slate-600 mt-6">
+          MyKasiBets Admin &mdash; Authorised access only
+        </p>
       </div>
     </div>
   );

@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { analyticsService } from '../services/analyticsService';
+import {
+  SkeletonRows,
+  tableCls, theadCls, thCls, tdCls, trHoverCls,
+  inputCls, labelCls,
+} from '../components/ui';
+
+const MetricCard = ({ label, value, accent = 'text-white' }) => (
+  <div className="bg-kasi-750 rounded-xl p-4 border border-white/[0.04]">
+    <p className="text-xs text-slate-500 mb-1.5">{label}</p>
+    <p className={`text-xl font-bold ${accent}`}>{value}</p>
+  </div>
+);
 
 const Reports = () => {
   const [revenueBreakdown, setRevenueBreakdown] = useState([]);
@@ -8,9 +20,7 @@ const Reports = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, [dateFrom, dateTo]);
+  useEffect(() => { loadData(); }, [dateFrom, dateTo]);
 
   const loadData = async () => {
     setLoading(true);
@@ -21,115 +31,88 @@ const Reports = () => {
       ]);
       setRevenueBreakdown(revenue || []);
       setUserEngagement(engagement);
-    } catch (error) {
-      console.error('Failed to load reports:', error);
+    } catch (err) {
+      console.error('Failed to load reports:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return <div className="p-8 text-center">Loading reports...</div>;
-  }
+  const fmtR = (n) => `R ${Number(n || 0).toFixed(2)}`;
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-shadow-grey-900 mb-6">Analytics & Reports</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-white">Analytics & Reports</h1>
 
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Date filters */}
+      <div className="bg-kasi-800 border border-white/[0.05] rounded-xl p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-shadow-grey-700 mb-2">From Date</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-            />
+            <label className={labelCls}>From Date</label>
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-shadow-grey-700 mb-2">To Date</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-            />
+            <label className={labelCls}>To Date</label>
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={inputCls} />
           </div>
         </div>
       </div>
 
+      {/* User Engagement */}
       {userEngagement && (
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-bold mb-4">User Engagement</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <div className="text-sm text-shadow-grey-600">Total Users</div>
-              <div className="text-2xl font-bold">{userEngagement.total_users}</div>
-            </div>
-            <div>
-              <div className="text-sm text-shadow-grey-600">Active (24h)</div>
-              <div className="text-2xl font-bold">{userEngagement.active_users_24h}</div>
-            </div>
-            <div>
-              <div className="text-sm text-shadow-grey-600">Active (7d)</div>
-              <div className="text-2xl font-bold">{userEngagement.active_users_7d}</div>
-            </div>
-            <div>
-              <div className="text-sm text-shadow-grey-600">Active (30d)</div>
-              <div className="text-2xl font-bold">{userEngagement.active_users_30d}</div>
-            </div>
-            <div>
-              <div className="text-sm text-shadow-grey-600">New Today</div>
-              <div className="text-2xl font-bold">{userEngagement.new_users_today}</div>
-            </div>
-            <div>
-              <div className="text-sm text-shadow-grey-600">New (7d)</div>
-              <div className="text-2xl font-bold">{userEngagement.new_users_7d}</div>
-            </div>
-            <div>
-              <div className="text-sm text-shadow-grey-600">Avg Bets/User</div>
-              <div className="text-2xl font-bold">{userEngagement.average_bets_per_user.toFixed(1)}</div>
-            </div>
-            <div>
-              <div className="text-sm text-shadow-grey-600">Avg Deposit/User</div>
-              <div className="text-2xl font-bold">R {userEngagement.average_deposit_per_user.toFixed(2)}</div>
-            </div>
+        <div className="bg-kasi-800 border border-white/[0.05] rounded-xl p-5">
+          <h2 className="text-base font-semibold text-white mb-4">User Engagement</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <MetricCard label="Total Users"       value={userEngagement.total_users.toLocaleString()} />
+            <MetricCard label="Active (24h)"      value={userEngagement.active_users_24h.toLocaleString()}  accent="text-blue-400" />
+            <MetricCard label="Active (7d)"       value={userEngagement.active_users_7d.toLocaleString()}   accent="text-blue-400" />
+            <MetricCard label="Active (30d)"      value={userEngagement.active_users_30d.toLocaleString()}  accent="text-blue-400" />
+            <MetricCard label="New Today"         value={userEngagement.new_users_today.toLocaleString()}   accent="text-emerald-400" />
+            <MetricCard label="New (7d)"          value={userEngagement.new_users_7d.toLocaleString()}      accent="text-emerald-400" />
+            <MetricCard label="Avg Bets / User"   value={userEngagement.average_bets_per_user.toFixed(1)}  accent="text-purple-400" />
+            <MetricCard label="Avg Deposit / User" value={fmtR(userEngagement.average_deposit_per_user)}   accent="text-amber-400" />
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">Revenue Breakdown by Game Type</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-shadow-grey-200">
-              <thead className="bg-shadow-grey-50">
+      {/* Revenue Breakdown */}
+      <div className={tableCls}>
+        <div className="px-6 py-4 border-b border-white/[0.05]">
+          <h2 className="text-base font-semibold text-white">Revenue Breakdown by Game Type</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className={theadCls}>
+              <tr>
+                <th className={thCls}>Game Type</th>
+                <th className={thCls}>Total Wagered</th>
+                <th className={thCls}>Total Payouts</th>
+                <th className={thCls}>Net Revenue</th>
+                <th className={thCls}>Bet Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <SkeletonRows cols={5} rows={4} />
+              ) : revenueBreakdown.length === 0 ? (
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Game Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Total Wagered</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Total Payouts</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Net Revenue</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-shadow-grey-500 uppercase">Bet Count</th>
+                  <td colSpan={5} className="px-6 py-14 text-center text-slate-500 text-sm">No data for selected period</td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-shadow-grey-200">
-                {revenueBreakdown.map((item) => (
-                  <tr key={item.game_type} className="hover:bg-shadow-grey-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{item.game_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">R {item.total_wagered.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">R {item.total_payouts.toFixed(2)}</td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${
-                      item.net_revenue >= 0 ? 'text-periwinkle-600' : 'text-shadow-grey-700'
-                    }`}>
-                      R {item.net_revenue.toFixed(2)}
+              ) : (
+                revenueBreakdown.map((item) => (
+                  <tr key={item.game_type} className={trHoverCls}>
+                    <td className={`${tdCls} font-medium text-white capitalize`}>{item.game_type}</td>
+                    <td className={`${tdCls} text-amber-400`}>{fmtR(item.total_wagered)}</td>
+                    <td className={`${tdCls} text-slate-400`}>{fmtR(item.total_payouts)}</td>
+                    <td className={`${tdCls} font-semibold ${item.net_revenue >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {fmtR(item.net_revenue)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{item.bet_count}</td>
+                    <td className={tdCls}>{item.bet_count.toLocaleString()}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
