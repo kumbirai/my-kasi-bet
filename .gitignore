@@ -100,6 +100,6 @@ wheels/
 .installed.cfg
 *.egg
 
-.claude
-.claude-flow
-.cursor
+# Local agent and editor state
+.claude/
+.cursor/
