@@ -1,8 +1,8 @@
-"""Initial migration: Add transaction, deposit, withdrawal, admin models, and admin action log
+"""Create the complete Telegram-only MyKasiBets schema.
 
 Revision ID: 001_initial
 Revises: 
-Create Date: 2025-01-XX XX:XX:XX.XXXXXX
+Create Date: 2026-07-14
 
 """
 from alembic import op
@@ -21,7 +21,7 @@ def upgrade() -> None:
     op.create_table(
         'users',
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('phone_number', sa.String(length=20), nullable=False),
+        sa.Column('telegram_chat_id', sa.String(length=32), nullable=False),
         sa.Column('username', sa.String(length=50), nullable=True),
         sa.Column('is_active', sa.Boolean(), nullable=False),
         sa.Column('is_blocked', sa.Boolean(), nullable=False),
@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
-    op.create_index(op.f('ix_users_phone_number'), 'users', ['phone_number'], unique=True)
+    op.create_index(op.f('ix_users_telegram_chat_id'), 'users', ['telegram_chat_id'], unique=True)
 
     # Create wallets table (depends on users)
     op.create_table(
@@ -40,11 +40,10 @@ def upgrade() -> None:
         sa.Column('balance', sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('user_id')
+        sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_wallets_id'), 'wallets', ['id'], unique=False)
-    op.create_index(op.f('ix_wallets_user_id'), 'wallets', ['user_id'], unique=False)
+    op.create_index(op.f('ix_wallets_user_id'), 'wallets', ['user_id'], unique=True)
 
     # Create admin_users table
     op.create_table(
@@ -93,6 +92,7 @@ def upgrade() -> None:
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('bet_type', sa.Enum('LUCKY_WHEEL', 'COLOR_GAME', 'PICK_3', 'FOOTBALL_YESNO', name='bettype'), nullable=False),
         sa.Column('stake_amount', sa.Numeric(precision=10, scale=2), nullable=False),
+        sa.Column('idempotency_key', sa.String(length=36), nullable=True),
         sa.Column('bet_data', sa.String(length=500), nullable=False),
         sa.Column('game_result', sa.String(length=500), nullable=True),
         sa.Column('status', sa.Enum('PENDING', 'WON', 'LOST', 'REFUNDED', 'CANCELLED', name='betstatus'), nullable=False),
@@ -113,6 +113,7 @@ def upgrade() -> None:
     op.create_index('ix_bets_user_created', 'bets', ['user_id', 'created_at'], unique=False)
     op.create_index('ix_bets_user_type', 'bets', ['user_id', 'bet_type'], unique=False)
     op.create_index('ix_bets_status_created', 'bets', ['status', 'created_at'], unique=False)
+    op.create_index('uq_bets_user_idempotency', 'bets', ['user_id', 'idempotency_key'], unique=True)
 
     # Create matches table (no dependencies)
     op.create_table(
@@ -242,6 +243,7 @@ def downgrade() -> None:
     op.drop_table('matches')
 
     # Drop bets table
+    op.drop_index('uq_bets_user_idempotency', table_name='bets')
     op.drop_index('ix_bets_status_created', table_name='bets')
     op.drop_index('ix_bets_user_type', table_name='bets')
     op.drop_index('ix_bets_user_created', table_name='bets')
@@ -272,7 +274,7 @@ def downgrade() -> None:
     op.drop_table('wallets')
 
     # Drop users table
-    op.drop_index(op.f('ix_users_phone_number'), table_name='users')
+    op.drop_index(op.f('ix_users_telegram_chat_id'), table_name='users')
     op.drop_index(op.f('ix_users_id'), table_name='users')
     op.drop_table('users')
 

@@ -153,7 +153,7 @@ class Pick3Game:
             enable_partial_matches: Whether to pay for partial matches
 
         Returns:
-            Tuple of (Bet object, result dict for WhatsApp message)
+            Tuple of (Bet object, result dict for the channel response)
         """
         # Validate bet data
         selected_numbers = Pick3Game.validate_bet_data(bet_data)

@@ -5,7 +5,7 @@ This module provides business logic for withdrawal operations including
 creation (with immediate wallet debit), approval, and rejection (with refund).
 """
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.withdrawal import Withdrawal, WithdrawalMethod, WithdrawalStatus
+from app.services.telegram_service import telegram_service
 from app.services.wallet_service import InsufficientBalanceError, wallet_service
-from app.services.whatsapp import whatsapp_service
 
 logger = logging.getLogger(__name__)
 
@@ -165,9 +165,9 @@ class WithdrawalService:
         # Update withdrawal status
         withdrawal.status = WithdrawalStatus.APPROVED
         withdrawal.reviewed_by = admin_user_id
-        withdrawal.reviewed_at = datetime.utcnow()
+        withdrawal.reviewed_at = datetime.now(timezone.utc)
         withdrawal.payment_reference = payment_reference
-        withdrawal.paid_at = datetime.utcnow()
+        withdrawal.paid_at = datetime.now(timezone.utc)
 
         db.flush()
 
@@ -176,7 +176,7 @@ class WithdrawalService:
             f"user_id={withdrawal.user_id}, amount={withdrawal.amount}"
         )
 
-        # Notify user via WhatsApp
+        # Notify user via Telegram
         try:
             user = db.query(User).filter(User.id == withdrawal.user_id).first()
             if user:
@@ -191,7 +191,7 @@ Funds will arrive within 24-48 hours.
 
 Reply 'menu' for main menu."""
 
-                await whatsapp_service.send_message(user.phone_number, message)
+                await telegram_service.send_message(user.telegram_chat_id, message)
         except Exception as e:
             logger.error(f"Error sending withdrawal approval notification: {e}")
 
@@ -247,7 +247,7 @@ Reply 'menu' for main menu."""
         # Update withdrawal status
         withdrawal.status = WithdrawalStatus.REJECTED
         withdrawal.reviewed_by = admin_user_id
-        withdrawal.reviewed_at = datetime.utcnow()
+        withdrawal.reviewed_at = datetime.now(timezone.utc)
         withdrawal.rejection_reason = rejection_reason
         withdrawal.refund_transaction_id = refund_transaction.id
 
@@ -258,7 +258,7 @@ Reply 'menu' for main menu."""
             f"user_id={withdrawal.user_id}, refunded={withdrawal.amount}"
         )
 
-        # Notify user via WhatsApp
+        # Notify user via Telegram
         try:
             user = db.query(User).filter(User.id == withdrawal.user_id).first()
             if user:
@@ -272,7 +272,7 @@ New Balance: R{float(refund_transaction.balance_after):.2f}
 
 Reply 'menu' for main menu."""
 
-                await whatsapp_service.send_message(user.phone_number, message)
+                await telegram_service.send_message(user.telegram_chat_id, message)
         except Exception as e:
             logger.error(f"Error sending withdrawal rejection notification: {e}")
 

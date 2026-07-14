@@ -6,7 +6,7 @@ authentication, password hashing, and audit trail logging.
 """
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -108,7 +108,7 @@ class AdminService:
             return None
 
         # Update last login
-        admin_user.last_login = datetime.utcnow()
+        admin_user.last_login = datetime.now(timezone.utc)
         db.flush()
 
         logger.info(f"Admin authenticated successfully: admin_id={admin_user.id}, email={email}")

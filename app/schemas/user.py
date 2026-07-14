@@ -15,11 +15,11 @@ class UserBase(BaseModel):
     Base user schema with common fields.
 
     Attributes:
-        phone_number: User's phone number (10-20 characters)
+        telegram_chat_id: User's Telegram chat id (1-32 characters)
         username: Optional username (max 50 characters)
     """
 
-    phone_number: str = Field(..., min_length=10, max_length=20)
+    telegram_chat_id: str = Field(..., min_length=1, max_length=32)
     username: Optional[str] = Field(None, max_length=50)
 
 

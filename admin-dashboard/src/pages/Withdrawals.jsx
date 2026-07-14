@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { withdrawalService } from '../services/withdrawalService';
 import toast from 'react-hot-toast';
 import {
@@ -22,9 +22,7 @@ const Withdrawals = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
 
-  useEffect(() => { loadWithdrawals(); }, [activeTab, page]);
-
-  const loadWithdrawals = async () => {
+  const loadWithdrawals = useCallback(async () => {
     setLoading(true);
     try {
       if (activeTab === 'pending') {
@@ -36,7 +34,11 @@ const Withdrawals = () => {
       }
     } catch { toast.error('Failed to load withdrawals'); }
     finally { setLoading(false); }
-  };
+  }, [activeTab, page, pageSize]);
+
+  useEffect(() => {
+    void loadWithdrawals();
+  }, [loadWithdrawals]);
 
   const handleApprove = async () => {
     try {

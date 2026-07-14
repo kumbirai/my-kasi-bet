@@ -82,6 +82,8 @@ htmlcov/
 .coverage.*
 
 # Distribution / packaging
+node_modules/
+.claude-flow/
 .Python
 build/
 develop-eggs/
@@ -97,3 +99,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+.claude
+.claude-flow
+.cursor

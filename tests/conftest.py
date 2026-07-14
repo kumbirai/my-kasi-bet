@@ -70,7 +70,7 @@ def test_user(test_db: Session) -> User:
     Returns:
         User: Test user instance
     """
-    user = User(phone_number="27821234567", username="TestUser")
+    user = User(telegram_chat_id="27821234567", username="TestUser")
     test_db.add(user)
     test_db.flush()
 

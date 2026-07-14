@@ -366,6 +366,57 @@ def test_unauthorized_access(test_db):
 
     response = client.get("/api/admin/users")
 
-    assert response.status_code == 403  # FastAPI returns 403 for missing auth
+    assert response.status_code == 401
 
+    app.dependency_overrides.clear()
+
+
+def test_admin_recovers_stale_miniapp_bet(test_db, test_admin, test_user):
+    """Admin recovery refunds stake and records an audit entry."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.api.deps import get_current_admin, get_db_session
+    from app.models.admin_action_log import AdminActionLog
+    from app.services.bet_service import BetService
+
+    bet = BetService.place_bet(
+        user_id=test_user.id,
+        bet_type=BetType.COLOR_GAME,
+        stake_amount=Decimal("10.00"),
+        bet_data={"selected_color": "red"},
+        db=test_db,
+        idempotency_key="d9f36ab8-9b2a-40a4-b3de-393677347f36",
+    )
+    bet.created_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    test_db.commit()
+    app.dependency_overrides[get_db_session] = lambda: test_db
+    app.dependency_overrides[get_current_admin] = lambda: test_admin
+
+    response = client.post("/api/admin/bets/recover-stale")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "refunded_count": 1,
+        "refunded_bet_ids": [bet.id],
+    }
+    test_db.refresh(bet)
+    assert bet.status == BetStatus.REFUNDED
+    action = test_db.query(AdminActionLog).one()
+    assert action.action_type == "refund_stale_miniapp_bet"
+    assert action.entity_id == bet.id
+    app.dependency_overrides.clear()
+
+
+def test_support_admin_cannot_recover_stale_bets(test_db, test_admin):
+    """Support role cannot trigger a money-moving recovery operation."""
+    from app.api.deps import get_current_admin, get_db_session
+
+    test_admin.role = AdminRole.SUPPORT
+    test_db.commit()
+    app.dependency_overrides[get_db_session] = lambda: test_db
+    app.dependency_overrides[get_current_admin] = lambda: test_admin
+
+    response = client.post("/api/admin/bets/recover-stale")
+
+    assert response.status_code == 403
     app.dependency_overrides.clear()

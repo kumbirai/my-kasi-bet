@@ -12,7 +12,6 @@ from app.services.wallet_service import (
     WalletService,
     wallet_service,
 )
-from app.services.whatsapp import WhatsAppService, whatsapp_service
 from app.services.withdrawal_service import (
     WithdrawalService,
     withdrawal_service,
@@ -22,8 +21,6 @@ __all__ = [
     "DepositService",
     "deposit_service",
     "InsufficientBalanceError",
-    "WhatsAppService",
-    "whatsapp_service",
     "MessageRouter",
     "message_router",
     "UserService",

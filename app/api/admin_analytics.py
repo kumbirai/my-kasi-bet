@@ -5,7 +5,7 @@ This module provides REST API endpoints for analytics and reporting including
 dashboard statistics, revenue breakdown, and user engagement metrics.
 """
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Dict, List, Optional
 
@@ -258,7 +258,7 @@ def get_user_engagement_metrics(
     total_users = db.query(func.count(User.id)).scalar()
 
     # Active users (users who have placed at least one bet)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     active_users_24h = (
         db.query(func.count(func.distinct(Bet.user_id)))

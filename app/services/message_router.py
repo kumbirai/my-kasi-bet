@@ -1,7 +1,7 @@
 """
 Message router service.
 
-Routes incoming WhatsApp and Telegram messages to shared handlers
+Routes incoming Telegram messages to shared handlers
 (game flows, menus, deposits) based on user state and message content.
 """
 import logging
@@ -31,9 +31,8 @@ from app.services.telegram_service import (
 )
 from app.services.user_service import UserService
 from app.services.wallet_service import wallet_service
-from app.services.whatsapp import whatsapp_service
 from app.services.withdrawal_service import withdrawal_service
-from app.utils.helpers import clean_message_text, normalize_phone_number
+from app.utils.helpers import clean_message_text
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +69,7 @@ class UserState:
 
 class MessageRouter:
     """
-    Routes incoming WhatsApp and Telegram messages to appropriate handlers.
+    Routes incoming Telegram messages to appropriate handlers.
 
     This service manages the conversation flow, user registration,
     command parsing, and response generation.
@@ -88,7 +87,7 @@ class MessageRouter:
 
     @staticmethod
     def _channel_label(user: User) -> str:
-        return "Telegram" if user.telegram_chat_id else "WhatsApp"
+        return "Telegram"
 
     async def _send_to_user(
         self,
@@ -96,25 +95,16 @@ class MessageRouter:
         message: str,
         reply_to_message_id: Optional[Any] = None,
     ) -> None:
-        """Send a text message on the user's channel (WhatsApp or Telegram)."""
-        if user.telegram_chat_id:
-            rid: Optional[int] = None
-            if reply_to_message_id is not None:
-                s = str(reply_to_message_id)
-                rid = int(s) if s.isdigit() else None
-            await telegram_service.send_message(
-                user.telegram_chat_id,
-                message,
-                reply_to_message_id=rid,
-            )
-        else:
-            await whatsapp_service.send_message(
-                user.phone_number or "",
-                message,
-                reply_to_message_id=str(reply_to_message_id)
-                if reply_to_message_id
-                else None,
-            )
+        """Send a text message to the user on Telegram."""
+        rid: Optional[int] = None
+        if reply_to_message_id is not None:
+            s = str(reply_to_message_id)
+            rid = int(s) if s.isdigit() else None
+        await telegram_service.send_message(
+            user.telegram_chat_id,
+            message,
+            reply_to_message_id=rid,
+        )
 
     def _push_to_back_stack(self, user_id: int, state: str) -> None:
         """
@@ -310,111 +300,6 @@ class MessageRouter:
         
         return stake_amount
 
-    async def route_message(
-        self,
-        from_number: str,
-        message_text: str,
-        message_id: str,
-        db: Session,
-    ) -> None:
-        """
-        Route incoming WhatsApp message to appropriate handler.
-
-        This is the main entry point for processing messages. It handles:
-        - Message acknowledgment (mark as read)
-        - User registration (if new user)
-        - Command parsing and routing
-        - Response generation and sending
-
-        Args:
-            from_number: Sender's phone number (format: 27821234567)
-            message_text: Message content
-            message_id: WhatsApp message ID
-            db: Database session
-        """
-        normalized_phone: Optional[str] = None
-        try:
-            # Mark message as read (non-blocking)
-            await whatsapp_service.mark_as_read(message_id)
-
-            # Normalize phone number
-            normalized_phone = normalize_phone_number(from_number)
-
-            # Clean message
-            clean_message = clean_message_text(message_text)
-
-            # Check if user exists before creating
-            existing_user = self.user_service.get_user_by_phone(normalized_phone, db)
-            is_new_user = existing_user is None
-
-            # Get or create user
-            user = self.user_service.get_or_create_user(normalized_phone, db)
-
-            # Check if user is blocked
-            if user.is_blocked:
-                response = (
-                    "❌ Your account has been blocked. "
-                    "Please contact support for assistance."
-                )
-                await whatsapp_service.send_message(
-                    normalized_phone, response, reply_to_message_id=message_id
-                )
-                return
-
-            # Update last active
-            self.user_service.update_last_active(user, db)
-
-            # Send welcome message for new users
-            if is_new_user:
-                response = self._get_welcome_message(user)
-                await whatsapp_service.send_message(
-                    normalized_phone, response, reply_to_message_id=message_id
-                )
-                return
-
-            # Check if user has active state (multi-step flow)
-            state = self.user_states.get(user.id)
-
-            if state:
-                response = await self._handle_state_flow(
-                    user, clean_message, state, db
-                )
-            else:
-                response = await self._handle_main_menu(user, clean_message, db)
-
-            # Send response
-            await whatsapp_service.send_message(
-                normalized_phone, response, reply_to_message_id=message_id
-            )
-
-        except ValueError as e:
-            logger.warning(f"Invalid phone number format: {e}")
-            if normalized_phone:
-                await whatsapp_service.send_message(
-                    normalized_phone,
-                    "❌ Invalid phone number format.\n\nReply 'menu' to restart.",
-                )
-        except Exception as e:
-            logger.error(f"Error routing message: {e}", exc_info=True)
-            if normalized_phone:
-                try:
-                    # Clear any broken state
-                    user_id = None
-                    if normalized_phone:
-                        user = self.user_service.get_user_by_phone(normalized_phone, db)
-                        if user:
-                            user_id = user.id
-                            self._clear_state(user_id)
-                    
-                    await whatsapp_service.send_message(
-                        normalized_phone,
-                        "❌ Something went wrong.\n\nReply 'menu' to restart.",
-                    )
-                except Exception as send_error:
-                    logger.error(
-                        f"Failed to send error message: {send_error}", exc_info=True
-                    )
-
     async def route_message_telegram(
         self,
         chat_id: str,
@@ -529,10 +414,7 @@ class MessageRouter:
         Returns:
             Welcome message text
         """
-        if user.telegram_chat_id:
-            id_line = f"💬 Telegram chat: {user.telegram_chat_id}"
-        else:
-            id_line = f"📱 Phone: {user.phone_number}"
+        id_line = f"💬 Telegram chat: {user.telegram_chat_id}"
         return f"""🎉 Welcome to MyKasiBets!
 
 You're all set! Your account has been created.

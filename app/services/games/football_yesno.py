@@ -8,10 +8,10 @@ matches after real-world events conclude.
 import asyncio
 import json
 import logging
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Dict, Any, Tuple, List, Optional
 from sqlalchemy.orm import Session
-from datetime import datetime
 
 from app.database import SessionLocal
 from app.models.bet import Bet, BetType, BetStatus
@@ -20,7 +20,6 @@ from app.models.user import User
 from app.models.wallet import Wallet
 from app.services.bet_service import BetService, InvalidBetDataError
 from app.services.telegram_service import telegram_service
-from app.services.whatsapp import whatsapp_service
 
 logger = logging.getLogger(__name__)
 
@@ -271,11 +270,6 @@ class FootballYesNoGame:
                             user.telegram_chat_id,
                             message,
                         )
-                    elif user.phone_number:
-                        await whatsapp_service.send_message(
-                            to=user.phone_number,
-                            message=message,
-                        )
 
                     logger.info(
                         f"Notification sent to user {user_id} for match {match_id}"
@@ -299,8 +293,7 @@ class FootballYesNoGame:
         """
         Settle a match and all associated bets (admin only).
 
-        Users with active bets on this match are notified on their channel
-        (WhatsApp or Telegram).
+        Users with active bets on this match are notified on Telegram.
 
         Args:
             match_id: Match ID to settle
@@ -322,7 +315,7 @@ class FootballYesNoGame:
         # Update match
         match.result = result
         match.status = MatchStatus.SETTLED
-        match.settled_at = datetime.utcnow()
+        match.settled_at = datetime.now(timezone.utc)
 
         # Get all pending bets for this match
         pending_bets = (

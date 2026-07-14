@@ -4,21 +4,16 @@ Security utilities for authentication and authorization.
 This module provides password hashing, JWT token creation and verification
 for admin authentication.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+import jwt
+from jwt.exceptions import InvalidTokenError
 
 from app.config import settings
 
-# Password hashing context
-try:
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-except Exception:
-    # Fallback if passlib has issues
-    pwd_context = None
+MAX_BCRYPT_PASSWORD_BYTES = 72
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -32,27 +27,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True if password matches, False otherwise
     """
-    # Try passlib first if available
-    if pwd_context:
-        try:
-            return pwd_context.verify(plain_password, hashed_password)
-        except Exception:
-            # If passlib fails, fall back to direct bcrypt
-            pass
-    
-    # Fallback to direct bcrypt
     try:
-        # Handle both string and bytes hashes
-        if isinstance(hashed_password, str):
-            hashed_bytes = hashed_password.encode('utf-8')
-        else:
-            hashed_bytes = hashed_password
-        
-        return bcrypt.checkpw(
-            plain_password.encode('utf-8'),
-            hashed_bytes
-        )
-    except Exception:
+        password_bytes = plain_password.encode("utf-8")
+        if len(password_bytes) > MAX_BCRYPT_PASSWORD_BYTES:
+            return False
+        return bcrypt.checkpw(password_bytes, hashed_password.encode("utf-8"))
+    except (TypeError, ValueError):
         return False
 
 
@@ -66,20 +46,10 @@ def get_password_hash(password: str) -> str:
     Returns:
         Hashed password string
     """
-    if pwd_context:
-        try:
-            return pwd_context.hash(password)
-        except Exception:
-            # Fallback to direct bcrypt if passlib fails
-            pass
-    
-    # Use bcrypt directly
-    password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        password_bytes = password_bytes[:72]
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password_bytes, salt)
-    return hashed.decode('utf-8')
+    password_bytes = password.encode("utf-8")
+    if len(password_bytes) > MAX_BCRYPT_PASSWORD_BYTES:
+        raise ValueError("password must not exceed 72 UTF-8 bytes")
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -96,9 +66,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
+        expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
 
@@ -125,5 +95,5 @@ def verify_token(token: str) -> Optional[dict]:
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         return payload
-    except JWTError:
+    except InvalidTokenError:
         return None

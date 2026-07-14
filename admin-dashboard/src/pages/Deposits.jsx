@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { depositService } from '../services/depositService';
 import { userService } from '../services/userService';
 import toast from 'react-hot-toast';
@@ -34,9 +34,7 @@ const Deposits = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => { loadDeposits(); }, [activeTab, page]);
-
-  const loadDeposits = async () => {
+  const loadDeposits = useCallback(async () => {
     setLoading(true);
     try {
       if (activeTab === 'pending') {
@@ -48,7 +46,11 @@ const Deposits = () => {
       }
     } catch { toast.error('Failed to load deposits'); }
     finally { setLoading(false); }
-  };
+  }, [activeTab, page, pageSize]);
+
+  useEffect(() => {
+    void loadDeposits();
+  }, [loadDeposits]);
 
   const handleApprove = async () => {
     try {
@@ -84,7 +86,7 @@ const Deposits = () => {
   const handleUserSelect = (user) => {
     setSelectedUser(user);
     setCreateFormData((f) => ({ ...f, user_id: user.id }));
-    setUserSearch(user.phone_number);
+    setUserSearch(user.telegram_chat_id);
     setUserSearchResults([]);
   };
 
@@ -246,7 +248,7 @@ const Deposits = () => {
                 value={userSearch}
                 onChange={(e) => { setUserSearch(e.target.value); if (!e.target.value.trim()) { setSelectedUser(null); setField('user_id', ''); } }}
                 onBlur={() => setTimeout(() => setUserSearchResults([]), 200)}
-                placeholder="Search by phone number (min 3 chars)…"
+                placeholder="Search by Telegram chat ID (min 3 chars)…"
                 className={inputCls}
               />
               {searchingUsers && (
@@ -266,7 +268,7 @@ const Deposits = () => {
                       onMouseDown={(e) => { e.preventDefault(); handleUserSelect(user); }}
                       className="w-full text-left px-4 py-3 hover:bg-kasi-700 transition-colors cursor-pointer border-b border-white/[0.04] last:border-0"
                     >
-                      <p className="text-sm font-medium text-white">{user.phone_number}</p>
+                      <p className="text-sm font-medium text-white">{user.telegram_chat_id}</p>
                       <p className="text-xs text-slate-500">ID: {user.id} &middot; Balance: R{parseFloat(user.wallet_balance || 0).toFixed(2)}</p>
                     </button>
                   ))}
@@ -275,7 +277,7 @@ const Deposits = () => {
             </div>
             {selectedUser && (
               <div className="mt-2 flex items-center justify-between px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                <span className="text-sm text-blue-300">{selectedUser.phone_number} (ID: {selectedUser.id})</span>
+                <span className="text-sm text-blue-300">{selectedUser.telegram_chat_id} (ID: {selectedUser.id})</span>
                 <button type="button" onClick={() => { setSelectedUser(null); setUserSearch(''); setField('user_id', ''); }} className="text-xs text-slate-500 hover:text-white cursor-pointer transition-colors">
                   Clear
                 </button>

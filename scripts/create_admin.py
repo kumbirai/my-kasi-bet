@@ -2,13 +2,9 @@
 Script to create initial admin user.
 
 This script creates an admin user in the database with hashed password.
-Usage: python scripts/create_admin.py
+Usage: python -m scripts.create_admin
 """
-import sys
-from pathlib import Path
-
-# Add parent directory to path
-sys.path.append(str(Path(__file__).parent.parent))
+import os
 
 from app.database import SessionLocal
 from app.models.admin import AdminRole, AdminUser
@@ -70,10 +66,24 @@ def create_admin_user(
 
 
 if __name__ == "__main__":
+    email = os.getenv("INITIAL_ADMIN_EMAIL")
+    password = os.getenv("INITIAL_ADMIN_PASSWORD")
+    full_name = os.getenv("INITIAL_ADMIN_FULL_NAME", "Initial Administrator")
+
+    if not email and not password:
+        print("Initial admin credentials are not configured; skipping creation.")
+        raise SystemExit(0)
+    if not email or not password:
+        raise RuntimeError(
+            "INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD must be set together"
+        )
+    if len(password) < 12:
+        raise RuntimeError("INITIAL_ADMIN_PASSWORD must contain at least 12 characters")
+
     print("Creating initial admin user...")
     create_admin_user(
-        email="admin@mykasibets.com",
-        password="Password123@",  # Change this!
-        full_name="Super Admin",
+        email=email,
+        password=password,
+        full_name=full_name,
         role=AdminRole.SUPER_ADMIN,
     )

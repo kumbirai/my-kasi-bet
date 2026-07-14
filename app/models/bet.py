@@ -73,6 +73,7 @@ class Bet(Base):
     # Bet details
     bet_type = Column(SQLEnum(BetType), nullable=False, index=True)
     stake_amount = Column(Numeric(10, 2), nullable=False)
+    idempotency_key = Column(String(36), nullable=True)
 
     # Bet data (JSON string with bet-specific data)
     # Example: {"selected_number": 5} for lucky_wheel
@@ -115,6 +116,12 @@ class Bet(Base):
         Index("ix_bets_user_created", "user_id", "created_at"),
         Index("ix_bets_user_type", "user_id", "bet_type"),
         Index("ix_bets_status_created", "status", "created_at"),
+        Index(
+            "uq_bets_user_idempotency",
+            "user_id",
+            "idempotency_key",
+            unique=True,
+        ),
     )
 
     def __repr__(self) -> str:

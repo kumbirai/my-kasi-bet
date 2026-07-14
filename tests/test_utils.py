@@ -5,47 +5,8 @@ This module tests helper utility functions.
 """
 import pytest
 
-from app.utils.helpers import (
-    clean_message_text,
-    normalize_phone_number,
-    validate_phone_number,
-)
-
-
-def test_normalize_phone_number_with_plus():
-    """Test normalizing phone number with + prefix."""
-    result = normalize_phone_number("+27 82 123 4567")
-    assert result == "27821234567"
-
-
-def test_normalize_phone_number_with_zero():
-    """Test normalizing phone number starting with 0."""
-    result = normalize_phone_number("0821234567")
-    assert result == "27821234567"
-
-
-def test_normalize_phone_number_already_normalized():
-    """Test normalizing already normalized number."""
-    result = normalize_phone_number("27821234567")
-    assert result == "27821234567"
-
-
-def test_normalize_phone_number_empty():
-    """Test normalizing empty phone number."""
-    with pytest.raises(ValueError):
-        normalize_phone_number("")
-
-
-def test_validate_phone_number_valid():
-    """Test validating valid phone number."""
-    assert validate_phone_number("27821234567") is True
-    assert validate_phone_number("+27 82 123 4567") is True
-
-
-def test_validate_phone_number_invalid():
-    """Test validating invalid phone number."""
-    assert validate_phone_number("123") is False
-    assert validate_phone_number("") is False
+from app.utils.helpers import clean_message_text
+from app.utils.security import get_password_hash, verify_password
 
 
 def test_clean_message_text():
@@ -58,3 +19,20 @@ def test_clean_message_text():
 def test_clean_message_text_none():
     """Test cleaning None message text."""
     assert clean_message_text(None) == ""
+
+
+def test_password_hash_round_trip():
+    """A valid password can be verified without a compatibility fallback."""
+    password = "ProductionPassword123!"
+
+    hashed_password = get_password_hash(password)
+
+    assert hashed_password != password
+    assert verify_password(password, hashed_password) is True
+    assert verify_password("wrong-password", hashed_password) is False
+
+
+def test_password_hash_rejects_values_beyond_bcrypt_limit():
+    """Passwords must never be silently truncated to bcrypt's byte limit."""
+    with pytest.raises(ValueError, match="72 UTF-8 bytes"):
+        get_password_hash("x" * 73)

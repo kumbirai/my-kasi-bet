@@ -1,6 +1,8 @@
-# Phase 5: WhatsApp + Telegram Unified Codebase
+# Phase 5: Telegram-only Codebase
 
-This folder contains **execution plans** for merging the WhatsApp-focused application (`my-kasi-bet`) with the Telegram variant (`my-kasi-bet-telegram`) into a **single** FastAPI deployment: shared PostgreSQL database, shared game engine, distinct webhook entry points, and one admin dashboard.
+> **Status update: WhatsApp removed.** The product is now **Telegram-only**. WhatsApp Business Platform policy prohibits real-money betting content, so the WhatsApp channel (webhook, adapter, `phone_number` identity, dual-channel admin fields) was excised and users are identified solely by `telegram_chat_id`. During the pre-release build phase, the Alembic history was rebased into the Telegram-only `001_initial` schema. The dual-channel merge documents below (`OPTIONS_AND_DECISIONS`, `BACKEND_MERGE`, `ADMIN_DASHBOARD`, `EDGE_CASES`) are retained as **historical records** of the merge that preceded the removal. Where they describe WhatsApp webhooks, phone-number identity, or cross-channel behaviour, that scope no longer exists. The forward-looking document is **[PHASE_5_TELEGRAM_MINIAPP.md](./PHASE_5_TELEGRAM_MINIAPP.md)**.
+
+This folder originally contained **execution plans** for merging the WhatsApp-focused application (`my-kasi-bet`) with the Telegram variant (`my-kasi-bet-telegram`) into a **single** FastAPI deployment: shared PostgreSQL database, shared game engine, distinct webhook entry points, and one admin dashboard.
 
 ## Document index
 
@@ -10,6 +12,7 @@ This folder contains **execution plans** for merging the WhatsApp-focused applic
 | [PHASE_5_BACKEND_MERGE_PLAN.md](./PHASE_5_BACKEND_MERGE_PLAN.md) | Backend engineers | Ordered tasks: schema, migrations, services, webhooks, message orchestration, games, tests, nginx |
 | [PHASE_5_ADMIN_DASHBOARD_MERGE_PLAN.md](./PHASE_5_ADMIN_DASHBOARD_MERGE_PLAN.md) | Frontend + API engineers | Unified admin API contracts, React user management, regression checklist |
 | [PHASE_5_EDGE_CASES_AND_RUNBOOKS.md](./PHASE_5_EDGE_CASES_AND_RUNBOOKS.md) | DevOps, QA, on-call | Webhook behavior, migration rollback, provider URL updates, monitoring |
+| [PHASE_5_TELEGRAM_MINIAPP.md](./PHASE_5_TELEGRAM_MINIAPP.md) | Backend + frontend engineers | Telegram Mini App as a richer game front-end: initData auth, `/api/miniapp` surface over the shared engine, and the edge-case spec that protects game feel and wallet integrity |
 
 Read **OPTIONS_AND_DECISIONS** first, then **BACKEND_MERGE**, then **ADMIN_DASHBOARD**, then **EDGE_CASES** for operational detail.
 

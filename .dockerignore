@@ -52,6 +52,8 @@ docker-compose.yml
 .dockerignore
 
 # Other
+.claude-flow/
+**/node_modules/
 .DS_Store
 *.db
 *.sqlite

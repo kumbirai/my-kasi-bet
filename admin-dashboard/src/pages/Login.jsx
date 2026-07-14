@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 import toast from 'react-hot-toast';
 import { inputCls, btnPrimary } from '../components/ui';
 

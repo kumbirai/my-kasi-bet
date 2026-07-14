@@ -106,7 +106,7 @@ class LuckyWheelGame:
             db: Database session
 
         Returns:
-            Tuple of (Bet object, result dict for WhatsApp message)
+            Tuple of (Bet object, result dict for the channel response)
         """
         # Validate bet data
         selected_number = LuckyWheelGame.validate_bet_data(bet_data)
@@ -138,7 +138,7 @@ class LuckyWheelGame:
             db=db,
         )
 
-        # Prepare result for WhatsApp
+        # Prepare result
         result = {
             "selected_number": selected_number,
             "drawn_number": drawn_number,

@@ -5,11 +5,12 @@ This module implements the Color Game where users bet on
 one of 4 colors (Red, Green, Blue, Yellow). If their color
 matches the drawn color, they win 3x their stake.
 """
-import secrets
 import logging
+import secrets
 from decimal import Decimal
-from typing import Dict, Any, Tuple
 from enum import Enum
+from typing import Any, Dict, Optional, Tuple
+
 from sqlalchemy.orm import Session
 
 from app.models.bet import Bet, BetType
@@ -97,6 +98,9 @@ class ColorGame:
         stake_amount: Decimal,
         bet_data: Dict[str, Any],
         db: Session,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Tuple[Bet, Dict[str, Any]]:
         """
         Play Color Game.
@@ -113,9 +117,12 @@ class ColorGame:
             stake_amount: Bet amount
             bet_data: {"selected_color": "red"}
             db: Database session
+            ip_address: Optional request address for the audit trail
+            user_agent: Optional client user agent for the audit trail
+            idempotency_key: Optional unique client request identifier
 
         Returns:
-            Tuple of (Bet object, result dict for WhatsApp message)
+            Tuple of (Bet object, result dict for the channel response)
         """
         # Validate bet data
         selected_color = ColorGame.validate_bet_data(bet_data)
@@ -127,6 +134,9 @@ class ColorGame:
             stake_amount=stake_amount,
             bet_data={"selected_color": selected_color},
             db=db,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            idempotency_key=idempotency_key,
         )
 
         # Generate result

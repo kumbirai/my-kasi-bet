@@ -12,6 +12,7 @@ from app.models.wallet import Wallet
 from app.services.bet_service import (
     BetService,
     BettingError,
+    DuplicateBetRequestError,
     InvalidBetAmountError,
     InvalidBetDataError,
 )
@@ -78,6 +79,32 @@ def test_place_bet_above_maximum(test_user, test_db):
             bet_data={"selected_number": 7},
             db=test_db,
         )
+
+
+def test_place_bet_rejects_duplicate_idempotency_key(test_user, test_db):
+    """Durable uniqueness prevents a retry from debiting the wallet twice."""
+    key = "d9f36ab8-9b2a-40a4-b3de-393677347f36"
+    first = BetService.place_bet(
+        user_id=test_user.id,
+        bet_type=BetType.COLOR_GAME,
+        stake_amount=Decimal("10.00"),
+        bet_data={"selected_color": "red"},
+        db=test_db,
+        idempotency_key=key,
+    )
+
+    with pytest.raises(DuplicateBetRequestError) as duplicate:
+        BetService.place_bet(
+            user_id=test_user.id,
+            bet_type=BetType.COLOR_GAME,
+            stake_amount=Decimal("10.00"),
+            bet_data={"selected_color": "red"},
+            db=test_db,
+            idempotency_key=key,
+        )
+
+    assert duplicate.value.bet_id == first.id
+    assert test_db.query(Wallet).one().balance == Decimal("990.00")
 
 
 def test_settle_bet_win(test_user, test_db):

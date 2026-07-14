@@ -5,7 +5,7 @@ This module provides business logic for deposit operations including
 creation, approval, and rejection workflows with automatic wallet crediting.
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional
 
@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 
 from app.models.deposit import Deposit, DepositStatus, PaymentMethod
 from app.models.user import User
+from app.services.telegram_service import telegram_service
 from app.services.wallet_service import wallet_service
-from app.services.whatsapp import whatsapp_service
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class DepositService:
             proof_value=proof_value,
             notes=notes,
             status=DepositStatus.PENDING,
-            expires_at=datetime.utcnow() + timedelta(hours=24),  # 24 hour expiry
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
         )
 
         db.add(deposit)
@@ -139,7 +139,7 @@ class DepositService:
         # Update deposit status
         deposit.status = DepositStatus.APPROVED
         deposit.reviewed_by = admin_user_id
-        deposit.reviewed_at = datetime.utcnow()
+        deposit.reviewed_at = datetime.now(timezone.utc)
         deposit.transaction_id = transaction.id
 
         db.flush()
@@ -150,7 +150,7 @@ class DepositService:
             f"transaction_id={transaction.id}"
         )
 
-        # Notify user via WhatsApp
+        # Notify user via Telegram
         try:
             user = db.query(User).filter(User.id == deposit.user_id).first()
             if user:
@@ -163,7 +163,7 @@ New Balance: R{float(transaction.balance_after):.2f}
 Your account has been credited!
 Reply 'balance' to check your balance."""
 
-                await whatsapp_service.send_message(user.phone_number, message)
+                await telegram_service.send_message(user.telegram_chat_id, message)
         except Exception as e:
             logger.error(f"Error sending deposit approval notification: {e}")
 
@@ -210,7 +210,7 @@ Reply 'balance' to check your balance."""
         # Update deposit status
         deposit.status = DepositStatus.REJECTED
         deposit.reviewed_by = admin_user_id
-        deposit.reviewed_at = datetime.utcnow()
+        deposit.reviewed_at = datetime.now(timezone.utc)
         deposit.rejection_reason = rejection_reason
 
         db.flush()
@@ -220,7 +220,7 @@ Reply 'balance' to check your balance."""
             f"user_id={deposit.user_id}, reason={rejection_reason}"
         )
 
-        # Notify user via WhatsApp
+        # Notify user via Telegram
         try:
             user = db.query(User).filter(User.id == deposit.user_id).first()
             if user:
@@ -233,7 +233,7 @@ Reason: {rejection_reason}
 
 Please contact support if you have questions."""
 
-                await whatsapp_service.send_message(user.phone_number, message)
+                await telegram_service.send_message(user.telegram_chat_id, message)
         except Exception as e:
             logger.error(f"Error sending deposit rejection notification: {e}")
 

@@ -7,11 +7,12 @@ MUST use this service to ensure proper financial handling.
 """
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import and_, desc, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.bet import Bet, BetStatus, BetType
@@ -36,6 +37,14 @@ class InvalidBetDataError(BettingError):
     """Raised when bet data is invalid."""
 
     pass
+
+
+class DuplicateBetRequestError(BettingError):
+    """Raised when an idempotency key already identifies another bet."""
+
+    def __init__(self, bet_id: int):
+        super().__init__(f"Idempotency key already belongs to bet {bet_id}")
+        self.bet_id = bet_id
 
 
 class BetService:
@@ -84,6 +93,7 @@ class BetService:
         db: Session,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Bet:
         """
         Place a bet for a user.
@@ -102,6 +112,7 @@ class BetService:
             db: Database session
             ip_address: User's IP address (for fraud detection)
             user_agent: User's user agent (for fraud detection)
+            idempotency_key: Optional unique client request identifier
 
         Returns:
             Created Bet object
@@ -137,6 +148,7 @@ class BetService:
                 status=BetStatus.PENDING,
                 ip_address=ip_address,
                 user_agent=user_agent,
+                idempotency_key=idempotency_key,
             )
 
             db.add(bet)
@@ -171,10 +183,38 @@ class BetService:
         except InvalidBetAmountError:
             db.rollback()
             raise
+        except IntegrityError as exc:
+            db.rollback()
+            if idempotency_key:
+                existing = BetService.get_bet_by_idempotency_key(
+                    user_id=user_id,
+                    idempotency_key=idempotency_key,
+                    db=db,
+                )
+                if existing:
+                    raise DuplicateBetRequestError(existing.id) from exc
+            logger.error("Bet persistence constraint failed", exc_info=True)
+            raise BettingError("Failed to place bet") from exc
         except Exception as e:
             db.rollback()
             logger.error(f"Error placing bet: {e}", exc_info=True)
             raise BettingError(f"Failed to place bet: {str(e)}")
+
+    @staticmethod
+    def get_bet_by_idempotency_key(
+        user_id: int,
+        idempotency_key: str,
+        db: Session,
+    ) -> Optional[Bet]:
+        """Find a user's bet by its client-generated idempotency key."""
+        return (
+            db.query(Bet)
+            .filter(
+                Bet.user_id == user_id,
+                Bet.idempotency_key == idempotency_key,
+            )
+            .first()
+        )
 
     @staticmethod
     def settle_bet(
@@ -220,7 +260,7 @@ class BetService:
             # Update bet record
             bet.game_result = json.dumps(game_result)
             bet.multiplier = multiplier
-            bet.settled_at = datetime.utcnow()
+            bet.settled_at = datetime.now(timezone.utc)
 
             if is_win:
                 # Calculate payout
@@ -299,7 +339,7 @@ class BetService:
 
             # Update bet status
             bet.status = BetStatus.REFUNDED
-            bet.settled_at = datetime.utcnow()
+            bet.settled_at = datetime.now(timezone.utc)
             bet.game_result = json.dumps({"refund_reason": reason})
 
             # Credit stake back to wallet

@@ -29,7 +29,7 @@ router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 
 def _apply_user_search(query, search: Optional[str]):
-    """Filter users by id, phone substring, or telegram chat id (Phase 5)."""
+    """Filter users by id or telegram chat id."""
     if not search or not search.strip():
         return query
     s = search.strip()
@@ -38,26 +38,17 @@ def _apply_user_search(query, search: Optional[str]):
             uid = int(s)
         except ValueError:
             uid = None
-        parts = [
-            User.telegram_chat_id == s,
-            User.phone_number.contains(s),
-        ]
+        parts = [User.telegram_chat_id == s]
         if uid is not None:
             parts.insert(0, User.id == uid)
         return query.filter(or_(*parts))
-    return query.filter(
-        or_(
-            User.phone_number.ilike(f"%{s}%"),
-            User.telegram_chat_id.contains(s),
-        )
-    )
+    return query.filter(User.telegram_chat_id.contains(s))
 
 
 class UserListItem(BaseModel):
     """Schema for user list item."""
 
     id: int
-    phone_number: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     is_active: bool
     is_blocked: bool
@@ -79,7 +70,6 @@ class UserDetailResponse(BaseModel):
     """Schema for user detail response."""
 
     id: int
-    phone_number: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     is_active: bool
     is_blocked: bool
@@ -104,7 +94,7 @@ def list_users(
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
     search: Optional[str] = Query(
         None,
-        description="Search by user id, phone substring, or Telegram chat id",
+        description="Search by user id or Telegram chat id",
     ),
     is_blocked: Optional[bool] = Query(None, description="Filter by blocked status"),
     current_admin: AdminUser = Depends(get_current_admin),
@@ -116,7 +106,7 @@ def list_users(
     Args:
         page: Page number (starting from 1)
         page_size: Number of items per page (1-100)
-        search: Search by numeric id, phone, or telegram_chat_id
+        search: Search by numeric id or telegram_chat_id
         is_blocked: Filter by blocked status
         current_admin: Current authenticated admin
         db: Database session
@@ -152,7 +142,6 @@ def list_users(
         user_list.append(
             {
                 "id": user.id,
-                "phone_number": user.phone_number,
                 "telegram_chat_id": user.telegram_chat_id,
                 "is_active": user.is_active,
                 "is_blocked": user.is_blocked,
@@ -247,7 +236,6 @@ def get_user_details(
 
     return UserDetailResponse(
         id=user.id,
-        phone_number=user.phone_number,
         telegram_chat_id=user.telegram_chat_id,
         is_active=user.is_active,
         is_blocked=user.is_blocked,
@@ -308,7 +296,6 @@ def block_user(
         entity_id=user_id,
         details={
             "reason": reason,
-            "phone_number": user.phone_number,
             "telegram_chat_id": user.telegram_chat_id,
         },
         db=db,
@@ -363,7 +350,6 @@ def unblock_user(
         entity_type="user",
         entity_id=user_id,
         details={
-            "phone_number": user.phone_number,
             "telegram_chat_id": user.telegram_chat_id,
         },
         db=db,

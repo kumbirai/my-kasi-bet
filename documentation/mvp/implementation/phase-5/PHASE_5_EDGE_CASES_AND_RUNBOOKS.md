@@ -121,4 +121,27 @@ Companion to [PHASE_5_BACKEND_MERGE_PLAN.md](./PHASE_5_BACKEND_MERGE_PLAN.md) an
 
 ---
 
+## 9. Telegram Mini App stale-bet recovery
+
+Immediate-result Mini App bets carry a durable per-user idempotency key. A Color,
+Lucky Wheel, or Pick-3 bet that remains `PENDING` beyond
+`MINIAPP_PENDING_BET_MAX_AGE_SECONDS` indicates that the stake debit committed but
+settlement did not finish. Football bets are deliberately excluded because they
+remain pending until an administrator settles the match.
+
+1. Review `GET /api/admin/bets/active` and application logs for the affected bet.
+2. Confirm the bet is an immediate-result Mini App bet and has no settled result.
+3. As an `admin` or `super_admin`, call
+   `POST /api/admin/bets/recover-stale`. The operation processes at most 100 bets.
+4. Verify each bet moved to `REFUNDED`, the wallet received one refund transaction,
+   and an `refund_stale_miniapp_bet` admin action log exists.
+5. Re-running the endpoint is safe: `BetService.refund_bet` only refunds `PENDING`
+   bets, so an already handled bet cannot receive a second credit.
+
+If a user reports a missing result, search by `user_id` and `idempotency_key`.
+A settled bet can be reconstructed from its stored bet data and game result; never
+place a replacement bet with a new key to compensate for a lost HTTP response.
+
+---
+
 **Index:** [README.md](./README.md)

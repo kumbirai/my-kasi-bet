@@ -39,7 +39,7 @@ def test_user_with_balance(test_db):
     from app.models.user import User
     from app.models.wallet import Wallet
 
-    user = User(phone_number="27821234567", username="TestUser")
+    user = User(telegram_chat_id="27821234567", username="TestUser")
     test_db.add(user)
     test_db.flush()
 

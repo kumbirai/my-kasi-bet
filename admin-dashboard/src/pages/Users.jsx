@@ -1,18 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { userService } from '../services/userService';
 import toast from 'react-hot-toast';
 import {
   Icon, Badge, Modal, Pagination, SkeletonRows,
   tableCls, theadCls, thCls, tdCls, trHoverCls,
   inputCls, selectCls, labelCls, textareaCls,
-  btnPrimary, btnSecondary, btnDanger,
+  btnSecondary, btnDanger,
 } from '../components/ui';
 
 function userSummary(user) {
   if (!user) return '';
-  if (user.phone_number && user.telegram_chat_id)
-    return `User #${user.id} (${user.phone_number}, Telegram: ${user.telegram_chat_id})`;
-  if (user.phone_number) return `User #${user.id} (${user.phone_number})`;
   if (user.telegram_chat_id) return `User #${user.id} (Telegram: ${user.telegram_chat_id})`;
   return `User #${user.id}`;
 }
@@ -30,9 +27,7 @@ const Users = () => {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockReason, setBlockReason] = useState('');
 
-  useEffect(() => { loadUsers(); }, [page, search, filterBlocked]);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
       const data = await userService.getUsers(page, pageSize, search || null, filterBlocked);
@@ -44,7 +39,11 @@ const Users = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterBlocked, page, pageSize, search]);
+
+  useEffect(() => {
+    void loadUsers();
+  }, [loadUsers]);
 
   const handleBlock = async () => {
     if (!selectedUser || !blockReason.trim()) { toast.error('Please provide a reason'); return; }
@@ -89,7 +88,7 @@ const Users = () => {
                 type="text"
                 value={search}
                 onChange={handleSearch}
-                placeholder="User ID, phone, or Telegram chat ID…"
+                placeholder="User ID or Telegram chat ID…"
                 className={`${inputCls} pl-9`}
               />
             </div>
@@ -120,7 +119,6 @@ const Users = () => {
             <thead className={theadCls}>
               <tr>
                 <th className={thCls}>ID</th>
-                <th className={thCls}>Phone</th>
                 <th className={thCls}>Telegram</th>
                 <th className={thCls}>Balance</th>
                 <th className={thCls}>Status</th>
@@ -130,10 +128,10 @@ const Users = () => {
             </thead>
             <tbody>
               {loading ? (
-                <SkeletonRows cols={7} rows={8} />
+                <SkeletonRows cols={6} rows={8} />
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-14 text-center text-slate-500 text-sm">
+                  <td colSpan={6} className="px-6 py-14 text-center text-slate-500 text-sm">
                     No users found
                   </td>
                 </tr>
@@ -141,7 +139,6 @@ const Users = () => {
                 users.map((user) => (
                   <tr key={user.id} className={trHoverCls}>
                     <td className={`${tdCls} font-mono text-xs text-slate-500`}>{user.id}</td>
-                    <td className={tdCls}>{user.phone_number ?? '—'}</td>
                     <td className={`${tdCls} font-mono text-xs`}>{user.telegram_chat_id ?? '—'}</td>
                     <td className={`${tdCls} text-amber-400 font-medium`}>
                       R {user.wallet_balance.toFixed(2)}

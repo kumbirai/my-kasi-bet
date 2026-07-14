@@ -13,12 +13,12 @@ from app.models.wallet import Wallet
 
 def test_create_user(test_db):
     """Test creating a user."""
-    user = User(phone_number="27821234567", username="TestUser")
+    user = User(telegram_chat_id="27821234567", username="TestUser")
     test_db.add(user)
     test_db.commit()
 
     assert user.id is not None
-    assert user.phone_number == "27821234567"
+    assert user.telegram_chat_id == "27821234567"
     assert user.username == "TestUser"
     assert user.is_active is True
     assert user.is_blocked is False
@@ -29,7 +29,7 @@ def test_create_wallet(test_db):
     from app.models.user import User
     
     # Create a new user without wallet for this test
-    user = User(phone_number="27829999999", username="TestUser2")
+    user = User(telegram_chat_id="27829999999", username="TestUser2")
     test_db.add(user)
     test_db.flush()
     
@@ -54,7 +54,7 @@ def test_user_repr(test_user):
     repr_str = repr(test_user)
     assert "User" in repr_str
     assert str(test_user.id) in repr_str
-    assert test_user.phone_number in repr_str
+    assert test_user.telegram_chat_id in repr_str
 
 
 def test_wallet_repr(test_db, test_user):

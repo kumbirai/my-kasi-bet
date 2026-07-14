@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { analyticsService } from '../services/analyticsService';
 import {
   SkeletonRows,
@@ -20,9 +20,7 @@ const Reports = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  useEffect(() => { loadData(); }, [dateFrom, dateTo]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [revenue, engagement] = await Promise.all([
@@ -36,7 +34,11 @@ const Reports = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateFrom, dateTo]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const fmtR = (n) => `R ${Number(n || 0).toFixed(2)}`;
 

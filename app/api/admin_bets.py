@@ -11,15 +11,17 @@ from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin, get_db_session
-from app.models.admin import AdminUser
+from app.config import settings
+from app.models.admin import AdminRole, AdminUser
 from app.models.bet import Bet, BetStatus, BetType
 from app.models.user import User
 from app.schemas.admin import PaginatedResponse
+from app.services.pending_bet_recovery import PendingBetRecoveryService
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +31,6 @@ router = APIRouter(prefix="/admin/bets", tags=["admin-bets"])
 def _user_display_label(user: Optional[User]) -> str:
     if not user:
         return "Unknown"
-    if user.phone_number:
-        return user.phone_number
     if user.telegram_chat_id:
         return user.telegram_chat_id
     return f"User {user.id}"
@@ -41,7 +41,7 @@ class BetResponse(BaseModel):
 
     id: int
     user_id: int
-    user_phone: str  # best-available label: phone, Telegram id, or User {id}
+    user_label: str  # best-available label: Telegram id, or User {id}
     bet_type: BetType
     stake_amount: float
     bet_data: dict
@@ -52,10 +52,7 @@ class BetResponse(BaseModel):
     created_at: str
     settled_at: Optional[str]
 
-    class Config:
-        """Pydantic config."""
-
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BetListResponse(BaseModel):
@@ -79,6 +76,36 @@ class BetStatistics(BaseModel):
     total_wagered: float
     total_payouts: float
     net_revenue: float
+
+
+class PendingBetRecoveryResponse(BaseModel):
+    """Result of one bounded stale-bet recovery run."""
+
+    refunded_count: int
+    refunded_bet_ids: List[int]
+
+
+@router.post("/recover-stale", response_model=PendingBetRecoveryResponse)
+def recover_stale_miniapp_bets(
+    current_admin: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db_session),
+) -> PendingBetRecoveryResponse:
+    """Refund stale immediate-result Mini App bets after operator review."""
+    if current_admin.role == AdminRole.SUPPORT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin role cannot recover bets",
+        )
+
+    refunded_ids = PendingBetRecoveryService.refund_stale_bets(
+        older_than_seconds=settings.MINIAPP_PENDING_BET_MAX_AGE_SECONDS,
+        db=db,
+        admin_id=current_admin.id,
+    )
+    return PendingBetRecoveryResponse(
+        refunded_count=len(refunded_ids),
+        refunded_bet_ids=refunded_ids,
+    )
 
 
 @router.get("")
@@ -167,7 +194,7 @@ def list_bets(
             BetResponse(
                 id=bet.id,
                 user_id=bet.user_id,
-                user_phone=_user_display_label(user),
+                user_label=_user_display_label(user),
                 bet_type=bet.bet_type,
                 stake_amount=float(bet.stake_amount),
                 bet_data=bet_data,
@@ -228,7 +255,7 @@ def list_active_bets(
             BetResponse(
                 id=bet.id,
                 user_id=bet.user_id,
-                user_phone=_user_display_label(user),
+                user_label=_user_display_label(user),
                 bet_type=bet.bet_type,
                 stake_amount=float(bet.stake_amount),
                 bet_data=bet_data,

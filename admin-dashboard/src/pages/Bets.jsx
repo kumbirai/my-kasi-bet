@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { betService } from '../services/betService';
 import toast from 'react-hot-toast';
 import {
-  Icon, Badge, SkeletonRows,
+  Icon, Badge, Pagination, SkeletonRows,
   tableCls, theadCls, thCls, tdCls, trHoverCls,
   selectCls, labelCls, inputCls, btnPrimary,
 } from '../components/ui';
@@ -14,33 +14,33 @@ const Bets = () => {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
   const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [filters, setFilters] = useState({ bet_type: '', status: '', date_from: '', date_to: '' });
 
-  useEffect(() => { loadBets(); loadStatistics(); }, [page, filters]);
-
-  const activeFilters = () => {
+  const activeFilters = useCallback(() => {
     const f = {};
     if (filters.bet_type) f.bet_type = filters.bet_type;
     if (filters.status)   f.status   = filters.status;
     if (filters.date_from) f.date_from = filters.date_from;
     if (filters.date_to)   f.date_to   = filters.date_to;
     return f;
-  };
+  }, [filters]);
 
-  const loadBets = async () => {
+  const loadBets = useCallback(async () => {
     setLoading(true);
     try {
       const data = await betService.getBets(page, pageSize, activeFilters());
       setBets(data.bets || []);
       setTotal(data.total || 0);
+      setTotalPages(data.total_pages || 0);
     } catch {
       toast.error('Failed to load bets');
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeFilters, page, pageSize]);
 
-  const loadStatistics = async () => {
+  const loadStatistics = useCallback(async () => {
     try {
       const af = activeFilters();
       const data = await betService.getBetStatistics({ bet_type: af.bet_type, date_from: af.date_from, date_to: af.date_to });
@@ -48,11 +48,16 @@ const Bets = () => {
     } catch (err) {
       console.error('Failed to load bet statistics:', err);
     }
-  };
+  }, [activeFilters]);
+
+  useEffect(() => {
+    void loadBets();
+    void loadStatistics();
+  }, [loadBets, loadStatistics]);
 
   const exportToCSV = () => {
     const headers = ['ID', 'User', 'Bet Type', 'Stake', 'Status', 'Payout', 'Created'];
-    const rows = bets.map((b) => [b.id, b.user_phone, b.bet_type, b.stake_amount, b.status, b.payout_amount, b.created_at]);
+    const rows = bets.map((b) => [b.id, b.user_label, b.bet_type, b.stake_amount, b.status, b.payout_amount, b.created_at]);
     const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
     const a = Object.assign(document.createElement('a'), {
       href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
@@ -153,7 +158,7 @@ const Bets = () => {
                 bets.map((bet) => (
                   <tr key={bet.id} className={trHoverCls}>
                     <td className={`${tdCls} font-mono text-xs text-slate-500`}>{bet.id}</td>
-                    <td className={tdCls}>{bet.user_phone}</td>
+                    <td className={tdCls}>{bet.user_label}</td>
                     <td className={tdCls}>
                       <span className="text-xs bg-kasi-750 border border-white/[0.06] px-2 py-0.5 rounded-md text-slate-300">
                         {bet.bet_type}
@@ -173,6 +178,13 @@ const Bets = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          onPage={setPage}
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          totalPages={totalPages}
+        />
       </div>
     </div>
   );

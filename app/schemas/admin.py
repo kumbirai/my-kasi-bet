@@ -7,9 +7,10 @@ authentication, user management, and action logging.
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.admin import AdminRole
+from app.utils.security import MAX_BCRYPT_PASSWORD_BYTES
 
 
 class AdminUserCreate(BaseModel):
@@ -27,6 +28,14 @@ class AdminUserCreate(BaseModel):
     password: str = Field(..., min_length=8, description="Password (min 8 characters)")
     full_name: str = Field(..., min_length=2, max_length=100)
     role: AdminRole = AdminRole.SUPPORT
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_size(cls, password: str) -> str:
+        """Reject values bcrypt cannot represent without truncation."""
+        if len(password.encode("utf-8")) > MAX_BCRYPT_PASSWORD_BYTES:
+            raise ValueError("password must not exceed 72 UTF-8 bytes")
+        return password
 
 
 class AdminUserLogin(BaseModel):

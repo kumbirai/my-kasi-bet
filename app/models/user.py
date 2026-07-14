@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
-from sqlalchemy import CheckConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -20,13 +19,11 @@ class User(Base):
     """
     User model representing a betting platform user.
 
-    WhatsApp users have ``phone_number`` set; Telegram users have
-    ``telegram_chat_id`` set. At least one identifier is required.
+    Users are identified by their Telegram chat id (``telegram_chat_id``).
 
     Attributes:
         id: Primary key identifier
-        phone_number: Unique phone number when registered via WhatsApp (optional)
-        telegram_chat_id: Unique Telegram chat id when registered via Telegram (optional)
+        telegram_chat_id: Unique Telegram chat id (required)
         username: Optional username
         is_active: Whether the user account is active
         is_blocked: Whether the user account is blocked
@@ -37,16 +34,8 @@ class User(Base):
 
     __tablename__ = "users"
 
-    __table_args__ = (
-        CheckConstraint(
-            "phone_number IS NOT NULL OR telegram_chat_id IS NOT NULL",
-            name="ck_users_phone_or_telegram",
-        ),
-    )
-
     id = Column(Integer, primary_key=True, index=True)
-    phone_number = Column(String(20), unique=True, nullable=True, index=True)
-    telegram_chat_id = Column(String(32), unique=True, nullable=True, index=True)
+    telegram_chat_id = Column(String(32), unique=True, nullable=False, index=True)
     username = Column(String(50), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     is_blocked = Column(Boolean, default=False, nullable=False)
@@ -91,7 +80,7 @@ class User(Base):
     def __repr__(self) -> str:
         """String representation of User instance."""
         return (
-            f"<User(id={self.id}, phone={self.phone_number}, "
+            f"<User(id={self.id}, "
             f"telegram_chat_id={self.telegram_chat_id}, "
             f"active={self.is_active}, blocked={self.is_blocked})>"
         )

@@ -49,16 +49,14 @@ services:
       
       # Redis Configuration
       REDIS_URL: redis://redis:6379/0
-      
-      # WhatsApp Configuration
-      WHATSAPP_API_URL: ${WHATSAPP_API_URL:-https://graph.facebook.com/v25.0}
-      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID}
-      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN}
-      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN}
 
       # Telegram Bot API (optional until Telegram is enabled)
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      MINIAPP_URL: ${MINIAPP_URL:-}
+      MINIAPP_INITDATA_MAX_AGE_SECONDS: ${MINIAPP_INITDATA_MAX_AGE_SECONDS:-3600}
+      MINIAPP_RATE_LIMIT_PER_MIN: ${MINIAPP_RATE_LIMIT_PER_MIN:-30}
+      MINIAPP_PENDING_BET_MAX_AGE_SECONDS: ${MINIAPP_PENDING_BET_MAX_AGE_SECONDS:-120}
       
       # Security Configuration
       SECRET_KEY: ${SECRET_KEY}
@@ -84,6 +82,8 @@ services:
     volumes:
       - ./logs:/app/logs
     depends_on:
+      db-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -110,10 +110,10 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
-      # Dummy values for db-init (not used during migration)
-      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-dummy}
-      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-dummy}
-      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-dummy}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      INITIAL_ADMIN_FULL_NAME: ${INITIAL_ADMIN_FULL_NAME:-Initial Administrator}
+      # Dummy value for db-init (not used during migration)
       SECRET_KEY: ${SECRET_KEY:-dummy-secret-key-for-db-init-only}
     command: /bin/bash scripts/docker-init-db.sh
     depends_on:
@@ -143,6 +143,22 @@ services:
     networks:
       - kasi-network
 
+  # Telegram Mini App Frontend
+  miniapp:
+    build:
+      context: ./miniapp
+      dockerfile: Dockerfile
+    container_name: kasi-miniapp
+    depends_on:
+      - kasi-backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - kasi-network
+
   # Nginx Reverse Proxy
   nginx:
     build:
@@ -160,6 +176,8 @@ services:
       kasi-backend:
         condition: service_healthy
       admin-dashboard:
+        condition: service_healthy
+      miniapp:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:80/health"]

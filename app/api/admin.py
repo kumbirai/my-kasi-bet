@@ -5,15 +5,12 @@ This module provides REST API endpoints for admin operations including
 authentication, deposit approval/rejection, and withdrawal approval/rejection.
 """
 import logging
-from datetime import datetime, timedelta
-from typing import List
-
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin, get_db_session
@@ -97,7 +94,7 @@ def admin_login(login: AdminLogin, db: Session = Depends(get_db_session)):
     )
 
     # Update last login
-    admin.last_login = datetime.utcnow()
+    admin.last_login = datetime.now(timezone.utc)
     db.commit()
 
     return {"access_token": access_token}
@@ -618,10 +615,7 @@ class MatchResponse(BaseModel):
     created_at: str
     settled_at: str | None
 
-    class Config:
-        """Pydantic config."""
-
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 @router.post("/matches", response_model=dict)

@@ -7,6 +7,7 @@ and environment variable support.
 from functools import lru_cache
 from typing import Optional
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,17 +19,17 @@ class Settings(BaseSettings):
     as attributes of the Settings instance.
     """
     
-    # WhatsApp Business API Configuration
-    WHATSAPP_API_URL: str = "https://graph.facebook.com/v25.0"
-    WHATSAPP_PHONE_NUMBER_ID: Optional[str] = None
-    WHATSAPP_ACCESS_TOKEN: Optional[str] = None
-    WHATSAPP_VERIFY_TOKEN: Optional[str] = None
-
     # Telegram Bot API (required when handling Telegram webhooks)
     TELEGRAM_BOT_TOKEN: Optional[str] = None
     # If set, POST /webhook/telegram must send matching X-Telegram-Bot-Api-Secret-Token
     # (pass the same value to Telegram setWebhook secret_token).
     TELEGRAM_WEBHOOK_SECRET: Optional[str] = None
+
+    # Telegram Mini App
+    MINIAPP_URL: Optional[str] = None
+    MINIAPP_INITDATA_MAX_AGE_SECONDS: int = Field(default=3600, gt=0)
+    MINIAPP_RATE_LIMIT_PER_MIN: int = Field(default=30, gt=0)
+    MINIAPP_PENDING_BET_MAX_AGE_SECONDS: int = Field(default=120, gt=0)
 
     # Database Configuration
     DATABASE_URL: str

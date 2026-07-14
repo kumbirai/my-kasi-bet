@@ -8,6 +8,7 @@ import logging
 from decimal import Decimal
 from typing import Optional
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -52,8 +53,6 @@ class UserService:
         """
         Get existing user or create new user by Telegram chat ID with wallet.
 
-        New users have phone_number=None.
-
         Args:
             telegram_chat_id: Telegram chat ID
             username: Optional Telegram username
@@ -80,7 +79,6 @@ class UserService:
             user = User(
                 telegram_chat_id=telegram_chat_id,
                 username=username,
-                phone_number=None,
             )
             db.add(user)
             db.flush()
@@ -94,6 +92,25 @@ class UserService:
                 f"New user registered via Telegram: {telegram_chat_id} (ID: {user.id})"
             )
             return user
+        except IntegrityError:
+            db.rollback()
+            user = (
+                db.query(User)
+                .filter(User.telegram_chat_id == telegram_chat_id)
+                .first()
+            )
+            if user:
+                logger.info(
+                    "Resolved concurrent Telegram registration: telegram_chat_id=%s",
+                    telegram_chat_id,
+                )
+                return user
+            logger.error(
+                "Telegram registration constraint failed: telegram_chat_id=%s",
+                telegram_chat_id,
+                exc_info=True,
+            )
+            raise
         except Exception as e:
             db.rollback()
             logger.error(
@@ -101,68 +118,6 @@ class UserService:
                 exc_info=True,
             )
             raise
-
-    @staticmethod
-    def get_or_create_user(phone_number: str, db: Session) -> User:
-        """
-        Get existing user or create new user with wallet.
-
-        This is an atomic operation that ensures a user always has a wallet.
-        If the user already exists, returns the existing user. If not,
-        creates both user and wallet in a single transaction.
-
-        Args:
-            phone_number: Normalized phone number
-            db: Database session
-
-        Returns:
-            User instance (existing or newly created)
-
-        Raises:
-            Exception: If database operation fails
-        """
-        if not phone_number or not str(phone_number).strip():
-            raise ValueError("phone_number is required for WhatsApp registration")
-
-        # Check if user exists
-        user = db.query(User).filter(User.phone_number == phone_number).first()
-
-        if user:
-            logger.debug(f"User found: {user.id} ({phone_number})")
-            return user
-
-        # Create new user
-        try:
-            user = User(phone_number=phone_number, telegram_chat_id=None)
-            db.add(user)
-            db.flush()  # Get user.id before committing
-
-            # Create wallet for new user
-            wallet = Wallet(user_id=user.id, balance=Decimal("0.00"))
-            db.add(wallet)
-            db.commit()
-            db.refresh(user)
-
-            logger.info(f"New user registered: {phone_number} (ID: {user.id})")
-            return user
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error registering user {phone_number}: {e}", exc_info=True)
-            raise
-
-    @staticmethod
-    def get_user_by_phone(phone_number: str, db: Session) -> Optional[User]:
-        """
-        Get user by phone number.
-
-        Args:
-            phone_number: Normalized phone number
-            db: Database session
-
-        Returns:
-            User instance if found, None otherwise
-        """
-        return db.query(User).filter(User.phone_number == phone_number).first()
 
     @staticmethod
     def update_last_active(user: User, db: Session) -> None:

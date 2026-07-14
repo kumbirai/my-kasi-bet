@@ -7,14 +7,14 @@ necessary middleware, routes, and lifecycle events.
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, admin_analytics, admin_bets, admin_users
-from app.api import telegram_webhook, whatsapp_webhook
+from app.api import admin, admin_analytics, admin_bets, admin_users, miniapp
+from app.api import telegram_webhook
 from app.config import settings
-from app.database import init_db
 from app.redis_client import check_redis_connection, close_redis_connection, get_redis_client
 
 # Configure logging
@@ -49,13 +49,6 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("Starting up application...")
-    try:
-        init_db()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
-        raise
-
     # Initialize Redis connection (non-blocking)
     try:
         redis_client = get_redis_client()
@@ -76,7 +69,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="MyKasiBets Betting Platform",
-    description="MVP betting platform API (WhatsApp and Telegram)",
+    description="MVP betting platform API (Telegram)",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -88,6 +81,13 @@ cors_origins = [
     for origin in settings.CORS_ORIGINS.split(",")
     if origin.strip()
 ]
+
+if settings.MINIAPP_URL:
+    miniapp_url = urlsplit(settings.MINIAPP_URL)
+    if miniapp_url.scheme and miniapp_url.netloc:
+        miniapp_origin = f"{miniapp_url.scheme}://{miniapp_url.netloc}"
+        if miniapp_origin not in cors_origins:
+            cors_origins.append(miniapp_origin)
 
 # In development, add common localhost ports if not already present
 if settings.ENVIRONMENT == "development":
@@ -115,12 +115,7 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Webhooks: separate paths per channel (see Phase 5 OPTIONS_AND_DECISIONS)
-app.include_router(
-    whatsapp_webhook.router,
-    prefix="/webhook/whatsapp",
-    tags=["webhook-whatsapp"],
-)
+# Telegram webhook (sole channel)
 app.include_router(
     telegram_webhook.router,
     prefix="/webhook/telegram",
@@ -131,6 +126,7 @@ app.include_router(admin.router, prefix="/api", tags=["admin"])
 app.include_router(admin_users.router, prefix="/api", tags=["admin"])
 app.include_router(admin_bets.router, prefix="/api", tags=["admin"])
 app.include_router(admin_analytics.router, prefix="/api", tags=["admin"])
+app.include_router(miniapp.router, prefix="/api/miniapp", tags=["miniapp"])
 
 
 @app.get("/")
